@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cineflix Encoder</title>
+<style>
+:root {
+  --bg: #0a0a14;
+  --card: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.1);
+  --c1: #6c63ff;
+  --c2: #f64f59;
+  --c3: #43e97b;
+  --c4: #4facfe;
+  --text: #f0f0ff;
+  --muted: rgba(240,240,255,0.45);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { background:var(--bg); font-family:'Segoe UI',sans-serif; min-height:100vh; color:var(--text); }
+
+/* BG */
+.bg { position:fixed; inset:0; overflow:hidden; z-index:0; }
+.orb { position:absolute; border-radius:50%; filter:blur(80px); }
+.orb1 { width:60vw; height:60vw; background:radial-gradient(circle,rgba(108,99,255,0.3),transparent 70%); top:-20%; left:-20%; }
+.orb2 { width:50vw; height:50vw; background:radial-gradient(circle,rgba(246,79,89,0.25),transparent 70%); bottom:-15%; right:-15%; }
+
+.wrap { position:relative; z-index:1; max-width:500px; margin:0 auto; padding:20px 16px 60px; }
+
+/* HEADER */
+.header { text-align:center; padding:24px 0 20px; }
+.logo { font-size:28px; font-weight:900; letter-spacing:2px; background:linear-gradient(135deg,#fff,var(--c1),var(--c2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.logo-sub { font-size:11px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin-top:4px; }
+
+/* API KEY */
+.api-bar { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px 16px; margin-bottom:16px; display:flex; align-items:center; gap:10px; }
+.api-dot { width:8px; height:8px; border-radius:50%; background:#555; flex-shrink:0; transition:background 0.3s; }
+.api-dot.ok { background:var(--c3); box-shadow:0 0 8px var(--c3); }
+.api-bar input { flex:1; background:transparent; border:none; outline:none; color:var(--text); font-size:13px; font-family:monospace; }
+.api-bar input::placeholder { color:var(--muted); }
+.api-save { background:rgba(108,99,255,0.3); border:1px solid rgba(108,99,255,0.4); color:#fff; font-size:11px; padding:6px 14px; border-radius:8px; cursor:pointer; white-space:nowrap; font-weight:600; }
+
+/* STEPS */
+.step { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:18px; margin-bottom:14px; }
+.step-head { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.step-num { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,var(--c1),var(--c2)); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; flex-shrink:0; }
+.step-title { font-size:15px; font-weight:700; }
+.step-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+
+/* INPUTS */
+.inp-wrap { margin-bottom:12px; }
+.inp-label { font-size:11px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:6px; display:block; }
+input[type=text], input[type=url] {
+  width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+  border-radius:10px; padding:12px 14px; color:var(--text); font-size:14px;
+  outline:none; transition:border-color 0.2s;
+}
+input:focus { border-color:rgba(108,99,255,0.5); }
+input::placeholder { color:var(--muted); }
+
+/* UPLOAD AREA */
+.upload-area {
+  border:2px dashed rgba(255,255,255,0.15); border-radius:14px;
+  padding:24px; text-align:center; cursor:pointer; transition:all 0.2s;
+  position:relative; overflow:hidden;
+}
+.upload-area:hover, .upload-area.drag { border-color:var(--c1); background:rgba(108,99,255,0.05); }
+.upload-area input { display:none; }
+.upload-icon { font-size:32px; margin-bottom:8px; }
+.upload-text { font-size:13px; color:var(--muted); }
+.upload-text strong { color:var(--text); }
+
+/* PREVIEW */
+.img-preview { display:none; border-radius:12px; overflow:hidden; margin-bottom:12px; position:relative; }
+.img-preview.show { display:block; }
+.img-preview img { width:100%; max-height:200px; object-fit:cover; display:block; }
+.img-preview-actions { position:absolute; top:8px; right:8px; display:flex; gap:6px; }
+.img-action-btn { background:rgba(0,0,0,0.7); border:none; color:#fff; font-size:11px; padding:5px 10px; border-radius:7px; cursor:pointer; backdrop-filter:blur(4px); }
+
+/* UPLOAD STATUS */
+.upload-status { display:none; align-items:center; gap:10px; padding:10px 14px; border-radius:10px; margin-bottom:12px; font-size:13px; }
+.upload-status.show { display:flex; }
+.upload-status.uploading { background:rgba(79,172,254,0.1); border:1px solid rgba(79,172,254,0.3); color:var(--c4); }
+.upload-status.done { background:rgba(67,233,123,0.1); border:1px solid rgba(67,233,123,0.3); color:var(--c3); }
+.upload-status.err { background:rgba(246,79,89,0.1); border:1px solid rgba(246,79,89,0.3); color:var(--c2); }
+.spin { width:16px; height:16px; border:2px solid transparent; border-top-color:currentColor; border-radius:50%; animation:spin 0.7s linear infinite; flex-shrink:0; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* PROGRESS BAR */
+.prog-bar { height:4px; background:rgba(255,255,255,0.1); border-radius:10px; overflow:hidden; margin-top:6px; display:none; }
+.prog-bar.show { display:block; }
+.prog-fill { height:100%; background:linear-gradient(90deg,var(--c1),var(--c4)); border-radius:10px; width:0; transition:width 0.3s; }
+
+/* URL RESULT */
+.url-result { display:none; background:rgba(67,233,123,0.06); border:1px solid rgba(67,233,123,0.2); border-radius:10px; padding:10px 14px; margin-bottom:12px; }
+.url-result.show { display:block; }
+.url-result-label { font-size:10px; color:var(--c3); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:4px; }
+.url-result-text { font-size:12px; color:#fff; word-break:break-all; font-family:monospace; }
+
+/* BUTTON */
+.btn { width:100%; padding:15px; border-radius:14px; border:none; cursor:pointer; font-size:15px; font-weight:800; color:#fff; letter-spacing:0.5px; transition:transform 0.15s, opacity 0.15s; }
+.btn:active { transform:scale(0.97); }
+.btn-primary { background:linear-gradient(135deg,var(--c1),var(--c2)); box-shadow:0 6px 24px rgba(108,99,255,0.4); }
+.btn-generate { background:linear-gradient(135deg,#11998e,#38ef7d); box-shadow:0 6px 24px rgba(67,233,123,0.3); margin-top:4px; }
+.btn:disabled { opacity:0.5; cursor:not-allowed; }
+.btn-sm { width:auto; padding:8px 18px; font-size:13px; border-radius:10px; }
+
+/* RESULT BOX */
+.result-section { display:none; }
+.result-section.show { display:block; }
+.result-card { background:linear-gradient(135deg,rgba(108,99,255,0.1),rgba(246,79,89,0.1)); border:1px solid rgba(108,99,255,0.3); border-radius:18px; padding:20px; margin-bottom:14px; }
+.result-title { font-size:13px; font-weight:700; color:var(--c1); letter-spacing:1px; text-transform:uppercase; margin-bottom:14px; }
+
+.copy-item { background:rgba(0,0,0,0.3); border-radius:12px; padding:14px; margin-bottom:10px; position:relative; }
+.copy-item-label { font-size:10px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:6px; }
+.copy-item-text { font-size:12px; color:#fff; word-break:break-all; font-family:monospace; line-height:1.6; padding-right:60px; }
+.copy-btn { position:absolute; top:12px; right:12px; background:rgba(108,99,255,0.4); border:none; color:#fff; font-size:11px; font-weight:700; padding:6px 14px; border-radius:8px; cursor:pointer; transition:background 0.2s; }
+.copy-btn:active { background:rgba(67,233,123,0.4); }
+
+/* DIVIDER */
+.divider { height:1px; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),transparent); margin:6px 0 18px; }
+
+/* TOAST */
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:rgba(30,30,50,0.95); border:1px solid rgba(255,255,255,0.15); border-radius:12px; padding:12px 24px; font-size:14px; font-weight:600; color:#fff; backdrop-filter:blur(12px); opacity:0; transition:all 0.3s; pointer-events:none; z-index:999; white-space:nowrap; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* SKIP PHOTO */
+.skip-link { text-align:center; margin-top:8px; }
+.skip-link button { background:none; border:none; color:var(--muted); font-size:12px; cursor:pointer; text-decoration:underline; }
+</style>
+</head>
+<body>
+
+<div class="bg">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+</div>
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo">🎬 CINEFLIX</div>
+    <div class="logo-sub">Bot Encoder Tool</div>
+  </div>
+
+  <!-- IMGBB API KEY -->
+  <div class="api-bar">
+    <div class="api-dot" id="apiDot"></div>
+    <input type="text" id="apiKeyInput" placeholder="ImgBB API Key দাও..." oninput="saveApiKey()">
+    <button class="api-save" onclick="openImgBB()">🔑 Key নাও</button>
+  </div>
+
+  <!-- STEP 1: PHOTO -->
+  <div class="step">
+    <div class="step-head">
+      <div class="step-num">1</div>
+      <div>
+        <div class="step-title">📸 Poster / Thumbnail</div>
+        <div class="step-sub">Phone থেকে photo দাও — ImgBB তে auto upload হবে</div>
+      </div>
+    </div>
+
+    <div class="img-preview" id="imgPreview">
+      <img id="previewImg" src="" alt="preview">
+      <div class="img-preview-actions">
+        <button class="img-action-btn" onclick="changePhoto()">🔄 Change</button>
+        <button class="img-action-btn" onclick="removePhoto()">❌</button>
+      </div>
+    </div>
+
+    <div class="upload-area" id="uploadArea" onclick="document.getElementById('photoInput').click()">
+      <input type="file" id="photoInput" accept="image/*" onchange="onPhotoSelect(event)">
+      <div class="upload-icon">🖼️</div>
+      <div class="upload-text"><strong>Tap করে Photo বেছে নাও</strong><br>অথবা drag & drop</div>
+    </div>
+
+    <div class="prog-bar" id="progBar"><div class="prog-fill" id="progFill"></div></div>
+
+    <div class="upload-status" id="uploadStatus">
+      <div class="spin" id="uploadSpin"></div>
+      <span id="uploadStatusText">Uploading...</span>
+    </div>
+
+    <div class="url-result" id="photoUrlResult">
+      <div class="url-result-label">✅ Photo URL (Auto filled)</div>
+      <div class="url-result-text" id="photoUrlText"></div>
+    </div>
+
+    <div class="skip-link">
+      <button onclick="skipPhoto()">Photo নেই? Skip করো →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: MOVIE INFO -->
+  <div class="step">
+    <div class="step-head">
+      <div class="step-num">2</div>
+      <div>
+        <div class="step-title">🎬 Movie Info</div>
+        <div class="step-sub">Title আর Video link দাও</div>
+      </div>
+    </div>
+
+    <div class="inp-wrap">
+      <label class="inp-label">Movie Title</label>
+      <input type="text" id="movieTitle" placeholder="যেমন: PK (2014) • Bengali + Hindi">
+    </div>
+
+    <div class="inp-wrap">
+      <label class="inp-label">Video Link (MP4 বা HLS/M3U8)</label>
+      <input type="url" id="videoUrl" placeholder="https://server15.mmsbee1.xyz/.../68930.mp4">
+    </div>
+  </div>
+
+  <!-- STEP 3: BOT INFO -->
+  <div class="step">
+    <div class="step-head">
+      <div class="step-num">3</div>
+      <div>
+        <div class="step-title">🤖 Bot Info</div>
+        <div class="step-sub">একবার দিলে save থাকবে</div>
+      </div>
+    </div>
+
+    <div class="inp-wrap">
+      <label class="inp-label">Bot Username</label>
+      <input type="text" id="botUsername" placeholder="Cineflixstream_bot" oninput="saveBotInfo()">
+    </div>
+
+    <div class="inp-wrap">
+      <label class="inp-label">Mini App Name (BotFather এ দেওয়া)</label>
+      <input type="text" id="appName" placeholder="cineflix" oninput="saveBotInfo()">
+    </div>
+  </div>
+
+  <!-- GENERATE BUTTON -->
+  <button class="btn btn-generate" onclick="generate()">⚡ Generate করো</button>
+
+  <!-- RESULT -->
+  <div class="result-section" id="resultSection">
+    <div style="height:20px;"></div>
+    <div class="result-card">
+      <div class="result-title">✅ Result</div>
+
+      <div class="copy-item">
+        <div class="copy-item-label">🔗 Bot Button Format (paste করো bot এ)</div>
+        <div class="copy-item-text" id="resultFormat"></div>
+        <button class="copy-btn" onclick="copyResult('resultFormat', this)">Copy</button>
+      </div>
+
+      <div class="copy-item">
+        <div class="copy-item-label">🌐 Watch Link (direct browser এ test করো)</div>
+        <div class="copy-item-text" id="resultLink"></div>
+        <button class="copy-btn" onclick="copyResult('resultLink', this)">Copy</button>
+      </div>
+
+      <div class="copy-item">
+        <div class="copy-item-label">🖼️ Poster URL</div>
+        <div class="copy-item-text" id="resultPoster"></div>
+        <button class="copy-btn" onclick="copyResult('resultPoster', this)">Copy</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──
+let photoUrl = '';
+let uploadedFile = null;
+
+// ── Init ──
+window.addEventListener('DOMContentLoaded', () => {
+  loadApiKey();
+  loadBotInfo();
+  
+  // Drag & drop
+  const area = document.getElementById('uploadArea');
+  area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('drag'); });
+  area.addEventListener('dragleave', () => area.classList.remove('drag'));
+  area.addEventListener('drop', e => {
+    e.preventDefault(); area.classList.remove('drag');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) handlePhoto(f);
+  });
+});
+
+// ── API Key ──
+function saveApiKey() {
+  const k = document.getElementById('apiKeyInput').value.trim();
+  localStorage.setItem('cf_imgbb_key', k);
+  document.getElementById('apiDot').className = 'api-dot' + (k.length > 10 ? ' ok' : '');
+}
+function loadApiKey() {
+  const k = localStorage.getItem('cf_imgbb_key') || '';
+  document.getElementById('apiKeyInput').value = k;
+  document.getElementById('apiDot').className = 'api-dot' + (k.length > 10 ? ' ok' : '');
+}
+function getApiKey() { return document.getElementById('apiKeyInput').value.trim(); }
+function openImgBB() { window.open('https://api.imgbb.com/', '_blank'); }
+
+// ── Bot Info ──
+function saveBotInfo() {
+  localStorage.setItem('cf_bot_username', document.getElementById('botUsername').value.trim());
+  localStorage.setItem('cf_app_name', document.getElementById('appName').value.trim());
+}
+function loadBotInfo() {
+  document.getElementById('botUsername').value = localStorage.getItem('cf_bot_username') || 'Cineflixstream_bot';
+  document.getElementById('appName').value = localStorage.getItem('cf_app_name') || 'cineflix';
+}
+
+// ── Photo Handling ──
+function onPhotoSelect(e) {
+  const f = e.target.files[0];
+  if (f) handlePhoto(f);
+}
+
+function handlePhoto(file) {
+  uploadedFile = file;
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('previewImg').src = e.target.result;
+    document.getElementById('imgPreview').classList.add('show');
+    document.getElementById('uploadArea').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+  
+  // Auto upload if key exists
+  const key = getApiKey();
+  if (key) {
+    uploadToImgBB(file, key);
+  } else {
+    showToast('⚠️ ImgBB API Key দাও!', false);
+  }
+}
+
+function changePhoto() {
+  document.getElementById('photoInput').click();
+}
+
+function removePhoto() {
+  photoUrl = '';
+  uploadedFile = null;
+  document.getElementById('imgPreview').classList.remove('show');
+  document.getElementById('uploadArea').style.display = '';
+  document.getElementById('photoUrlResult').classList.remove('show');
+  setUploadStatus('', '');
+}
+
+function skipPhoto() {
+  photoUrl = '';
+  showToast('Photo skip করা হয়েছে', true);
+}
+
+// ── ImgBB Upload ──
+function setUploadStatus(type, text) {
+  const el = document.getElementById('uploadStatus');
+  const spin = document.getElementById('uploadSpin');
+  const txt = document.getElementById('uploadStatusText');
+  if (!type) { el.classList.remove('show','uploading','done','err'); return; }
+  el.className = 'upload-status show ' + type;
+  spin.style.display = type === 'uploading' ? 'block' : 'none';
+  txt.textContent = text;
+}
+
+async function uploadToImgBB(file, key) {
+  setUploadStatus('uploading', 'Uploading to ImgBB...');
+  document.getElementById('progBar').classList.add('show');
+  document.getElementById('photoUrlResult').classList.remove('show');
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const fd = new FormData();
+      fd.append('key', key);
+      fd.append('image', reader.result.split(',')[1]);
+      fd.append('name', file.name.replace(/\.[^.]+$/, ''));
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', 'https://api.imgbb.com/1/upload');
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          const pct = Math.round(e.loaded / e.total * 100);
+          document.getElementById('progFill').style.width = pct + '%';
+        }
+      };
+      xhr.onload = () => {
+        try {
+          const d = JSON.parse(xhr.responseText);
+          if (d.success) {
+            photoUrl = d.data.image.url;
+            setUploadStatus('done', '✅ Upload সফল!');
+            document.getElementById('progBar').classList.remove('show');
+            document.getElementById('photoUrlResult').classList.add('show');
+            document.getElementById('photoUrlText').textContent = photoUrl;
+            showToast('✅ Photo upload হয়েছে!', true);
+            resolve(photoUrl);
+          } else {
+            throw new Error(d.error?.message || 'Upload failed');
+          }
+        } catch(e) {
+          setUploadStatus('err', '❌ ' + e.message);
+          document.getElementById('progBar').classList.remove('show');
+          reject(e);
+        }
+      };
+      xhr.onerror = () => { setUploadStatus('err', '❌ Network error'); reject(); };
+      xhr.send(fd);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── Generate ──
+function generate() {
+  const videoUrl = document.getElementById('videoUrl').value.trim();
+  const title = document.getElementById('movieTitle').value.trim();
+  const botUsername = document.getElementById('botUsername').value.trim().replace('@','');
+  const appName = document.getElementById('appName').value.trim();
+
+  if (!videoUrl) { showToast('❌ Video link দাও!', false); return; }
+  if (!title) { showToast('❌ Movie title দাও!', false); return; }
+  if (!botUsername) { showToast('❌ Bot username দাও!', false); return; }
+
+  // Build payload: videoUrl|||title|||posterUrl
+  const poster = photoUrl || '';
+  const payload = videoUrl + '|||' + title + '|||' + poster;
+
+  // Base64 URL-safe encode
+  const encoded = btoa(unescape(encodeURIComponent(payload)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+  const watchLink = `https://t.me/${botUsername}/${appName}?startapp=${encoded}`;
+  const botFormat = `▶️ WATCH NOW | ${watchLink} | url`;
+
+  document.getElementById('resultFormat').textContent = botFormat;
+  document.getElementById('resultLink').textContent = watchLink;
+  document.getElementById('resultPoster').textContent = poster || '(কোনো poster নেই)';
+  document.getElementById('resultSection').classList.add('show');
+
+  // Scroll to result
+  setTimeout(() => {
+    document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+
+  showToast('✅ Generate সফল!', true);
+}
+
+// ── Copy ──
+function copyResult(id, btn) {
+  const text = document.getElementById(id).textContent;
+  if (text === '(কোনো poster নেই)') { showToast('⚠️ Poster নেই!', false); return; }
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✅';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+    showToast('📋 Copied!', true);
+  });
+}
+
+// ── Toast ──
+function showToast(msg, ok) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = ok ? 'rgba(67,233,123,0.3)' : 'rgba(246,79,89,0.3)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
