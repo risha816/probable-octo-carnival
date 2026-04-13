@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cineflix Encoder</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080c14;
+  --card: rgba(255,255,255,0.04);
+  --border: rgba(255,255,255,0.08);
+  --player-c1: #6c63ff;
+  --player-c2: #f64f59;
+  --player-c3: #43e97b;
+  --browser-c1: #00d4ff;
+  --browser-c2: #7c3aed;
+  --browser-c3: #10b981;
+  --text: #e8eaf0;
+  --muted: rgba(232,234,240,0.4);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html { scroll-behavior:smooth; }
+body { background:var(--bg); font-family:'Syne',sans-serif; min-height:100vh; color:var(--text); overflow-x:hidden; }
+
+/* BG */
+.bg { position:fixed; inset:0; overflow:hidden; z-index:0; pointer-events:none; }
+.grid-lines {
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(108,99,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+  background-size:52px 52px;
+}
+.glow1 { position:absolute; width:600px; height:600px; background:radial-gradient(circle, rgba(108,99,255,0.12) 0%, transparent 70%); top:-200px; left:-150px; border-radius:50%; }
+.glow2 { position:absolute; width:500px; height:500px; background:radial-gradient(circle, rgba(0,212,255,0.08) 0%, transparent 70%); bottom:-150px; right:-100px; border-radius:50%; }
+.glow3 { position:absolute; width:400px; height:400px; background:radial-gradient(circle, rgba(246,79,89,0.06) 0%, transparent 70%); top:50%; left:50%; transform:translate(-50%,-50%); border-radius:50%; }
+.scan-line { position:absolute; inset:0; background:repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px); pointer-events:none; }
+
+.wrap { position:relative; z-index:1; max-width:480px; margin:0 auto; padding:20px 16px 80px; }
+
+/* HEADER */
+.header { padding:30px 0 26px; text-align:center; }
+.header-logo {
+  display:inline-flex; align-items:center; gap:12px;
+  background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+  border-radius:18px; padding:12px 22px; margin-bottom:16px;
+}
+.logo-icon {
+  width:40px; height:40px; border-radius:11px; flex-shrink:0;
+  background:linear-gradient(135deg, var(--player-c1), var(--player-c2));
+  display:flex; align-items:center; justify-content:center; font-size:20px;
+  box-shadow:0 0 20px rgba(108,99,255,0.4);
+}
+.logo-text { text-align:left; }
+.logo-title { font-size:18px; font-weight:900; letter-spacing:1.5px; color:#fff; line-height:1; }
+.logo-sub { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:2.5px; text-transform:uppercase; margin-top:3px; }
+.header-desc { font-size:12px; color:var(--muted); letter-spacing:0.3px; line-height:1.6; }
+
+/* TAB SWITCHER */
+.tab-bar {
+  display:flex; gap:8px; margin-bottom:20px;
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07);
+  border-radius:16px; padding:5px;
+}
+.tab-btn {
+  flex:1; padding:11px 10px; border-radius:12px; border:none; cursor:pointer;
+  font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700;
+  letter-spacing:1px; text-transform:uppercase; transition:all 0.25s ease;
+  background:transparent; color:var(--muted);
+}
+.tab-btn.player-tab.active {
+  background:linear-gradient(135deg, rgba(108,99,255,0.25), rgba(246,79,89,0.15));
+  border:1px solid rgba(108,99,255,0.35); color:#fff;
+  box-shadow:0 4px 20px rgba(108,99,255,0.2);
+}
+.tab-btn.browser-tab.active {
+  background:linear-gradient(135deg, rgba(0,212,255,0.2), rgba(124,58,237,0.15));
+  border:1px solid rgba(0,212,255,0.3); color:#fff;
+  box-shadow:0 4px 20px rgba(0,212,255,0.15);
+}
+.tab-btn:not(.active):hover { color:rgba(232,234,240,0.7); background:rgba(255,255,255,0.04); }
+
+/* SECTION PANELS */
+.section-panel { display:none; }
+.section-panel.active { display:block; }
+
+/* MODE BADGE */
+.mode-badge {
+  display:inline-flex; align-items:center; gap:8px;
+  border-radius:10px; padding:8px 14px; margin-bottom:18px;
+  font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:1.5px;
+}
+.mode-badge.player { background:rgba(108,99,255,0.1); border:1px solid rgba(108,99,255,0.25); color:var(--player-c1); }
+.mode-badge.browser { background:rgba(0,212,255,0.08); border:1px solid rgba(0,212,255,0.2); color:var(--browser-c1); }
+.mode-dot { width:7px; height:7px; border-radius:50%; animation:blink 1.5s ease-in-out infinite; flex-shrink:0; }
+.mode-badge.player .mode-dot { background:var(--player-c1); box-shadow:0 0 8px var(--player-c1); }
+.mode-badge.browser .mode-dot { background:var(--browser-c1); box-shadow:0 0 8px var(--browser-c1); }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+/* BOT INFO CARD — shared, always visible */
+.bot-card {
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+  border-radius:18px; padding:18px; margin-bottom:14px; position:relative; overflow:hidden;
+}
+.bot-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent); }
+.bot-card-head { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.bot-card-icon { width:28px; height:28px; border-radius:8px; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.bot-card-title { font-size:13px; font-weight:800; color:#fff; }
+.bot-card-sub { font-size:10px; color:var(--muted); font-family:'JetBrains Mono',monospace; margin-top:2px; }
+.row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+/* CARD */
+.card {
+  background:var(--card); border:1px solid var(--border);
+  border-radius:18px; padding:18px; margin-bottom:12px;
+  position:relative; overflow:hidden;
+}
+.card.player-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, rgba(108,99,255,0.4), transparent); }
+.card.browser-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, rgba(0,212,255,0.3), transparent); }
+
+.card-head { display:flex; align-items:center; gap:10px; margin-bottom:15px; }
+.card-num { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:900; flex-shrink:0; color:#fff; }
+.card-num.player { background:linear-gradient(135deg,var(--player-c1),var(--player-c2)); }
+.card-num.browser { background:linear-gradient(135deg,var(--browser-c1),var(--browser-c2)); }
+.card-title { font-size:14px; font-weight:800; letter-spacing:0.3px; }
+.card-sub { font-size:10px; color:var(--muted); margin-top:2px; font-family:'JetBrains Mono',monospace; }
+
+/* FIELDS */
+.field { margin-bottom:12px; }
+.field:last-child { margin-bottom:0; }
+.field-label { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:7px; display:flex; align-items:center; gap:6px; }
+.field-label .fl-dot { color:var(--player-c1); }
+.field-label .fl-dot-b { color:var(--browser-c1); }
+input[type=text], input[type=url] {
+  width:100%; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.09);
+  border-radius:11px; padding:12px 14px; color:var(--text); font-size:13px; font-family:'Syne',sans-serif;
+  outline:none; transition:border-color 0.2s, box-shadow 0.2s;
+}
+input:focus { border-color:rgba(108,99,255,0.4); box-shadow:0 0 0 3px rgba(108,99,255,0.06); }
+.browser-section input:focus { border-color:rgba(0,212,255,0.4); box-shadow:0 0 0 3px rgba(0,212,255,0.05); }
+input::placeholder { color:rgba(232,234,240,0.22); font-size:12px; }
+
+/* INFO BOX */
+.info-box { background:rgba(245,158,11,0.05); border:1px solid rgba(245,158,11,0.15); border-radius:12px; padding:12px 14px; margin-bottom:14px; font-size:11px; color:rgba(245,158,11,0.8); line-height:1.7; font-family:'JetBrains Mono',monospace; }
+.info-box strong { color:rgb(245,158,11); }
+
+/* GENERATE BTN */
+.btn-gen {
+  width:100%; padding:16px; border-radius:14px; border:none; cursor:pointer;
+  font-family:'Syne',sans-serif; font-size:15px; font-weight:900; color:#fff; letter-spacing:0.5px;
+  position:relative; overflow:hidden; transition:transform 0.15s, box-shadow 0.15s; margin-bottom:14px;
+}
+.btn-gen::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 50%); }
+.btn-gen:active { transform:scale(0.97); }
+.btn-gen:disabled { opacity:0.4; cursor:not-allowed; transform:none; }
+.btn-gen.player-btn {
+  background:linear-gradient(135deg, var(--player-c1) 0%, var(--player-c2) 100%);
+  box-shadow:0 4px 28px rgba(108,99,255,0.3), 0 4px 28px rgba(246,79,89,0.15);
+}
+.btn-gen.browser-btn {
+  background:linear-gradient(135deg, var(--browser-c1) 0%, var(--browser-c2) 100%);
+  box-shadow:0 4px 28px rgba(0,212,255,0.25), 0 4px 28px rgba(124,58,237,0.2);
+}
+
+/* RESULT */
+.result-wrap { display:none; margin-bottom:16px; }
+.result-wrap.show { display:block; }
+.result-card { border-radius:18px; padding:18px; position:relative; overflow:hidden; }
+.result-card.player-result {
+  background:linear-gradient(135deg, rgba(108,99,255,0.07), rgba(246,79,89,0.05));
+  border:1px solid rgba(108,99,255,0.2);
+}
+.result-card.browser-result {
+  background:linear-gradient(135deg, rgba(0,212,255,0.06), rgba(124,58,237,0.05));
+  border:1px solid rgba(0,212,255,0.2);
+}
+.result-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; }
+.player-result::before { background:linear-gradient(90deg, var(--player-c1), var(--player-c2)); }
+.browser-result::before { background:linear-gradient(90deg, var(--browser-c1), var(--browser-c2)); }
+
+.result-title { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:2.5px; text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.player-result .result-title { color:var(--player-c1); }
+.browser-result .result-title { color:var(--browser-c1); }
+.result-title::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--player-c3); box-shadow:0 0 8px var(--player-c3); flex-shrink:0; }
+.browser-result .result-title::before { background:var(--browser-c3); box-shadow:0 0 8px var(--browser-c3); }
+
+.copy-row { background:rgba(0,0,0,0.28); border:1px solid rgba(255,255,255,0.06); border-radius:11px; padding:12px 13px; margin-bottom:9px; position:relative; }
+.copy-row:last-child { margin-bottom:0; }
+.copy-label { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:5px; }
+.copy-text { font-size:11px; color:#fff; word-break:break-all; font-family:'JetBrains Mono',monospace; line-height:1.7; padding-right:62px; opacity:0.88; }
+.copy-btn {
+  position:absolute; top:11px; right:11px;
+  color:#fff; font-family:'JetBrains Mono',monospace; font-size:9px; font-weight:700;
+  padding:5px 12px; border-radius:7px; cursor:pointer; letter-spacing:1px;
+  border:1px solid; transition:all 0.2s;
+}
+.player-result .copy-btn { background:rgba(108,99,255,0.15); border-color:rgba(108,99,255,0.3); color:var(--player-c1); }
+.browser-result .copy-btn { background:rgba(0,212,255,0.12); border-color:rgba(0,212,255,0.28); color:var(--browser-c1); }
+.copy-btn:active { background:rgba(16,185,129,0.25); color:#43e97b; border-color:#43e97b; }
+
+/* DIVIDER */
+.section-divider {
+  display:flex; align-items:center; gap:12px; margin:22px 0 18px;
+}
+.div-line { flex:1; height:1px; background:rgba(255,255,255,0.07); }
+.div-label { font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:2.5px; color:var(--muted); text-transform:uppercase; white-space:nowrap; }
+
+/* TOAST */
+.toast {
+  position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:rgba(8,12,20,0.96); border:1px solid rgba(255,255,255,0.1);
+  border-radius:14px; padding:11px 22px; font-size:12px; font-weight:700; color:#fff;
+  backdrop-filter:blur(16px); opacity:0; transition:all 0.3s; pointer-events:none; z-index:999;
+  white-space:nowrap; font-family:'JetBrains Mono',monospace; letter-spacing:0.5px;
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="bg">
+  <div class="grid-lines"></div>
+  <div class="glow1"></div>
+  <div class="glow2"></div>
+  <div class="glow3"></div>
+  <div class="scan-line"></div>
+</div>
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-logo">
+      <div class="logo-icon">🎬</div>
+      <div class="logo-text">
+        <div class="logo-title">CINEFLIX</div>
+        <div class="logo-sub">Link Encoder Tool</div>
+      </div>
+    </div>
+    <div class="header-desc">Mini App Player অথবা Telegram Browser — দুটো আলাদা link তৈরি করো</div>
+  </div>
+
+  <!-- BOT INFO — shared for both sections -->
+  <div class="bot-card">
+    <div class="bot-card-head">
+      <div class="bot-card-icon">🤖</div>
+      <div>
+        <div class="bot-card-title">Bot Info</div>
+        <div class="bot-card-sub">একবার দিলে দুটো section-এই save থাকবে</div>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <div class="field-label"><span class="fl-dot">▸</span> Bot Username</div>
+        <input type="text" id="botUsername" placeholder="Cineflixstream_bot" oninput="saveBotInfo()">
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="fl-dot">▸</span> App Name</div>
+        <input type="text" id="appName" placeholder="cineflix" oninput="saveBotInfo()">
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB SWITCHER -->
+  <div class="tab-bar">
+    <button class="tab-btn player-tab active" onclick="switchTab('player')">🎬 Mini App Player</button>
+    <button class="tab-btn browser-tab" onclick="switchTab('browser')">🌐 Browser Mode</button>
+  </div>
+
+  <!-- ═══════════════════════════════
+       SECTION 1: MINI APP PLAYER
+  ═══════════════════════════════ -->
+  <div class="section-panel active" id="playerSection">
+
+    <div class="mode-badge player">
+      <div class="mode-dot"></div>
+      MINI APP PLAYER MODE
+    </div>
+
+    <div class="info-box">
+      <strong>কীভাবে কাজ করে:</strong> এই link click করলে Mini App খুলবে → 2টা Adsgram ad দেখাবে → তারপর Mini App-এর ভেতরেই video play হবে। m3u8 ও mp4 দুটোই support করে।
+    </div>
+
+    <!-- Video URL -->
+    <div class="card player-card">
+      <div class="card-head">
+        <div class="card-num player">1</div>
+        <div>
+          <div class="card-title">🎬 Video URL</div>
+          <div class="card-sub">MP4 বা M3U8 direct link দাও</div>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="fl-dot">▸</span> Video Link</div>
+        <input type="url" id="p_videoUrl" placeholder="https://cdn.example.com/movie.mp4 বা .m3u8">
+      </div>
+    </div>
+
+    <!-- Movie Info -->
+    <div class="card player-card">
+      <div class="card-head">
+        <div class="card-num player">2</div>
+        <div>
+          <div class="card-title">📋 Movie Info</div>
+          <div class="card-sub">Title ও Poster (optional)</div>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="fl-dot">▸</span> Title</div>
+        <input type="text" id="p_title" placeholder="যেমন: Oppenheimer (2023) • Bengali">
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="fl-dot">▸</span> Poster URL (optional)</div>
+        <input type="url" id="p_poster" placeholder="https://i.imgur.com/poster.jpg">
+      </div>
+    </div>
+
+    <button class="btn-gen player-btn" onclick="generatePlayer()">🎬 Player Link Generate করো</button>
+
+    <!-- RESULT -->
+    <div class="result-wrap" id="pResultWrap">
+      <div class="result-card player-result">
+        <div class="result-title">Player Link Ready ✓</div>
+        <div class="copy-row">
+          <div class="copy-label">🤖 Bot Button Format</div>
+          <div class="copy-text" id="p_rFormat"></div>
+          <button class="copy-btn" onclick="doCopy('p_rFormat',this)">COPY</button>
+        </div>
+        <div class="copy-row">
+          <div class="copy-label">🔗 Direct Link</div>
+          <div class="copy-text" id="p_rLink"></div>
+          <button class="copy-btn" onclick="doCopy('p_rLink',this)">COPY</button>
+        </div>
+        <div class="copy-row">
+          <div class="copy-label">📦 Encoded Payload</div>
+          <div class="copy-text" id="p_rPayload"></div>
+          <button class="copy-btn" onclick="doCopy('p_rPayload',this)">COPY</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /playerSection -->
+
+  <!-- ═══════════════════════════════
+       SECTION 2: BROWSER MODE
+  ═══════════════════════════════ -->
+  <div class="section-panel browser-section" id="browserSection">
+
+    <div class="mode-badge browser">
+      <div class="mode-dot"></div>
+      BROWSER MODE
+    </div>
+
+    <div class="info-box" style="border-color:rgba(0,212,255,0.15); background:rgba(0,212,255,0.04); color:rgba(0,212,255,0.75);">
+      <strong style="color:rgb(0,212,255);">কীভাবে কাজ করে:</strong> এই link click করলে Mini App খুলবে → 2টা Adsgram ad দেখাবে → তারপর Telegram-এর <strong style="color:rgb(0,212,255);">default browser</strong>-এ MP4 automatically open হয়ে play হবে।
+    </div>
+
+    <!-- Video URL -->
+    <div class="card browser-card">
+      <div class="card-head">
+        <div class="card-num browser">1</div>
+        <div>
+          <div class="card-title">🌐 Video URL</div>
+          <div class="card-sub">Direct MP4 link দাও</div>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="fl-dot-b">▸</span> MP4 Link</div>
+        <input type="url" id="b_videoUrl" placeholder="https://cdn.bangladada.com/1000/1712/1712.mp4">
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="fl-dot-b">▸</span> Title (optional)</div>
+        <input type="text" id="b_title" placeholder="যেমন: Bachelor (2025) • Bengali">
+      </div>
+    </div>
+
+    <button class="btn-gen browser-btn" onclick="generateBrowser()">🌐 Browser Link Generate করো</button>
+
+    <!-- RESULT -->
+    <div class="result-wrap" id="bResultWrap">
+      <div class="result-card browser-result">
+        <div class="result-title">Browser Link Ready ✓</div>
+        <div class="copy-row">
+          <div class="copy-label">🤖 Bot Button Format</div>
+          <div class="copy-text" id="b_rFormat"></div>
+          <button class="copy-btn" onclick="doCopy('b_rFormat',this)">COPY</button>
+        </div>
+        <div class="copy-row">
+          <div class="copy-label">🌐 Direct Link</div>
+          <div class="copy-text" id="b_rLink"></div>
+          <button class="copy-btn" onclick="doCopy('b_rLink',this)">COPY</button>
+        </div>
+        <div class="copy-row">
+          <div class="copy-label">📦 Encoded Payload</div>
+          <div class="copy-text" id="b_rPayload"></div>
+          <button class="copy-btn" onclick="doCopy('b_rPayload',this)">COPY</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /browserSection -->
+
+</div><!-- /wrap -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Bot Info — shared ──
+function saveBotInfo() {
+  localStorage.setItem('cf_bot', document.getElementById('botUsername').value.trim());
+  localStorage.setItem('cf_app', document.getElementById('appName').value.trim());
+}
+function loadBotInfo() {
+  document.getElementById('botUsername').value = localStorage.getItem('cf_bot') || 'Cineflixstream_bot';
+  document.getElementById('appName').value = localStorage.getItem('cf_app') || 'cineflix';
+}
+window.addEventListener('DOMContentLoaded', loadBotInfo);
+
+// ── Tab switcher ──
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
+  if (tab === 'player') {
+    document.querySelector('.player-tab').classList.add('active');
+    document.getElementById('playerSection').classList.add('active');
+  } else {
+    document.querySelector('.browser-tab').classList.add('active');
+    document.getElementById('browserSection').classList.add('active');
+  }
+}
+
+// ── Encode helper ──
+function encodePayload(raw) {
+  return btoa(unescape(encodeURIComponent(raw)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+function getBot() { return document.getElementById('botUsername').value.trim().replace('@',''); }
+function getApp() { return document.getElementById('appName').value.trim(); }
+
+// ── Generate Player Link ──
+function generatePlayer() {
+  const videoUrl = document.getElementById('p_videoUrl').value.trim();
+  const title    = document.getElementById('p_title').value.trim();
+  const poster   = document.getElementById('p_poster').value.trim();
+  const bot      = getBot();
+  const app      = getApp();
+
+  if (!videoUrl) { toast('❌ Video URL দাও!', false); return; }
+  if (!bot)      { toast('❌ Bot username দাও!', false); return; }
+  if (!app)      { toast('❌ App name দাও!', false); return; }
+
+  // FORMAT: videoUrl|||title|||posterUrl
+  let payload = videoUrl;
+  if (title || poster) payload += '|||' + (title || '');
+  if (poster)          payload += '|||' + poster;
+
+  const encoded   = encodePayload(payload);
+  const link      = `https://t.me/${bot}/${app}?startapp=${encoded}`;
+  const botFormat = `▶️ ${title || 'Watch Now'} | ${link} | url`;
+
+  document.getElementById('p_rFormat').textContent  = botFormat;
+  document.getElementById('p_rLink').textContent    = link;
+  document.getElementById('p_rPayload').textContent = encoded;
+  document.getElementById('pResultWrap').classList.add('show');
+
+  setTimeout(() => document.getElementById('pResultWrap').scrollIntoView({ behavior:'smooth', block:'start' }), 100);
+  toast('✅ Player link ready!', true);
+}
+
+// ── Generate Browser Link ──
+function generateBrowser() {
+  const videoUrl = document.getElementById('b_videoUrl').value.trim();
+  const title    = document.getElementById('b_title').value.trim();
+  const bot      = getBot();
+  const app      = getApp();
+
+  if (!videoUrl) { toast('❌ Video URL দাও!', false); return; }
+  if (!bot)      { toast('❌ Bot username দাও!', false); return; }
+  if (!app)      { toast('❌ App name দাও!', false); return; }
+
+  // FORMAT: browser|||videoUrl|||title
+  const payload   = 'browser|||' + videoUrl + (title ? '|||' + title : '');
+  const encoded   = encodePayload(payload);
+  const link      = `https://t.me/${bot}/${app}?startapp=${encoded}`;
+  const botFormat = `▶️ ${title || 'Watch Now'} | ${link} | url`;
+
+  document.getElementById('b_rFormat').textContent  = botFormat;
+  document.getElementById('b_rLink').textContent    = link;
+  document.getElementById('b_rPayload').textContent = encoded;
+  document.getElementById('bResultWrap').classList.add('show');
+
+  setTimeout(() => document.getElementById('bResultWrap').scrollIntoView({ behavior:'smooth', block:'start' }), 100);
+  toast('✅ Browser link ready!', true);
+}
+
+// ── Copy ──
+function doCopy(id, btn) {
+  const t = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(t).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✅';
+    setTimeout(() => btn.textContent = orig, 2000);
+    toast('📋 Copied!', true);
+  }).catch(() => toast('❌ Copy failed', false));
+}
+
+// ── Toast ──
+function toast(msg, ok) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.borderColor = ok ? 'rgba(16,185,129,0.4)' : 'rgba(239,68,68,0.4)';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
