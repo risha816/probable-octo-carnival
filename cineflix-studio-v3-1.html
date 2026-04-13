@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cineflix Studio</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090f;--s1:#0c0f1a;--s2:#111521;--s3:#171c2e;
+  --border:#1e2440;--border2:#2a3158;
+  --text:#dde4f8;--muted:#3d4870;--muted2:#6b7aaa;
+  --c1:#6c63ff;--c2:#f64f59;--c3:#43e97b;--c4:#00d4ff;--c5:#fa709a;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+/* ── BG ── */
+.bg-fixed{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+.bg-orb{position:absolute;border-radius:50%;filter:blur(120px);opacity:.07;}
+.o1{width:700px;height:700px;background:var(--c1);top:-200px;left:-200px;}
+.o2{width:600px;height:600px;background:var(--c2);bottom:-200px;right:-200px;}
+.o3{width:400px;height:400px;background:var(--c4);top:40%;left:50%;transform:translate(-50%,-50%);}
+.bg-grid{position:absolute;inset:0;
+  background-image:linear-gradient(rgba(108,99,255,.03) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(0,212,255,.02) 1px,transparent 1px);
+  background-size:48px 48px;}
+
+/* ── LAYOUT ── */
+.shell{position:relative;z-index:1;display:flex;min-height:100vh;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:220px;flex-shrink:0;background:rgba(12,15,26,.97);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;
+  backdrop-filter:blur(20px);transition:transform .3s;z-index:50;}
+.brand{padding:18px 16px 14px;border-bottom:1px solid var(--border);}
+.brand-row{display:flex;align-items:center;gap:10px;}
+.brand-ic{width:38px;height:38px;border-radius:11px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--c1),var(--c2));
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  box-shadow:0 4px 20px rgba(108,99,255,.4);}
+.brand-name{font-size:17px;font-weight:900;letter-spacing:1px;color:#fff;}
+.brand-name span{color:var(--c1);}
+.brand-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted2);letter-spacing:2px;margin-top:2px;text-transform:uppercase;}
+
+.nav{flex:1;padding:10px 8px;overflow-y:auto;}
+.nav-sec{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);
+  letter-spacing:2px;padding:0 10px;margin:12px 0 5px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:10px;
+  font-size:13px;font-weight:600;color:var(--muted2);cursor:pointer;transition:all .2s;
+  margin-bottom:2px;border:1px solid transparent;}
+.nav-item:hover{background:var(--s3);color:var(--text);}
+.nav-item.active{background:linear-gradient(135deg,rgba(108,99,255,.15),rgba(246,79,89,.08));
+  border-color:rgba(108,99,255,.25);color:#fff;}
+.nav-ic{font-size:15px;width:20px;text-align:center;flex-shrink:0;}
+.nav-badge{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;
+  padding:2px 7px;border-radius:20px;background:rgba(108,99,255,.15);color:var(--c1);
+  border:1px solid rgba(108,99,255,.2);}
+
+.sidebar-bot{border-top:1px solid var(--border);padding:12px;}
+.cfg-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);
+  letter-spacing:1.5px;margin-bottom:5px;display:flex;align-items:center;gap:6px;text-transform:uppercase;}
+.cfg-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .3s;flex-shrink:0;}
+.cfg-dot.ok{background:var(--c3);box-shadow:0 0 8px var(--c3);}
+.cfg-inp{width:100%;background:var(--s3);border:1px solid var(--border);color:var(--text);
+  border-radius:9px;padding:8px 11px;font-size:12px;font-family:'JetBrains Mono',monospace;
+  outline:none;transition:border .2s;margin-bottom:5px;}
+.cfg-inp:last-child{margin-bottom:0;}
+.cfg-inp:focus{border-color:var(--c1);}
+.cfg-inp::placeholder{color:var(--muted);}
+
+/* mobile sidebar */
+.sbtgl{display:none;position:fixed;bottom:20px;right:20px;z-index:200;width:48px;height:48px;
+  border-radius:14px;background:linear-gradient(135deg,var(--c1),var(--c2));border:none;
+  color:#fff;font-size:18px;cursor:pointer;box-shadow:0 4px 20px rgba(108,99,255,.5);}
+@media(max-width:700px){
+  .sidebar{position:fixed;left:0;top:0;transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .sbtgl{display:flex;align-items:center;justify-content:center;}
+  .main{padding:20px 14px 100px;}
+}
+
+/* ── MAIN ── */
+.main{flex:1;padding:26px 22px 80px;overflow-y:auto;max-width:660px;}
+.page{display:none;animation:pgIn .25s ease;}
+.page.active{display:block;}
+@keyframes pgIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+.ph{margin-bottom:20px;}
+.ph h1{font-size:20px;font-weight:900;color:#fff;}
+.ph p{font-size:12px;color:var(--muted2);margin-top:3px;line-height:1.6;}
+
+/* ── CARDS ── */
+.card{background:rgba(255,255,255,.03);border:1px solid var(--border);
+  border-radius:16px;padding:16px;margin-bottom:11px;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);}
+.card.ap::before{background:linear-gradient(90deg,transparent,rgba(108,99,255,.5),transparent);}
+.card.ac::before{background:linear-gradient(90deg,transparent,rgba(0,212,255,.4),transparent);}
+.card.ag::before{background:linear-gradient(90deg,transparent,rgba(67,233,123,.4),transparent);}
+.card-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.card-num{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:900;color:#fff;flex-shrink:0;}
+.np{background:linear-gradient(135deg,var(--c1),var(--c2));}
+.nc{background:linear-gradient(135deg,var(--c4),#7c3aed);}
+.card-title{font-size:14px;font-weight:800;color:#fff;}
+.card-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted2);margin-top:2px;}
+
+/* ── FIELDS ── */
+.field{margin-bottom:10px;}
+.field:last-child{margin-bottom:0;}
+.fl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted2);
+  letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+input[type=text],input[type=url]{
+  width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
+  border-radius:10px;padding:11px 13px;color:var(--text);font-size:13px;
+  font-family:'Syne',sans-serif;outline:none;transition:border-color .2s,box-shadow .2s;}
+input:focus{border-color:rgba(108,99,255,.45);box-shadow:0 0 0 3px rgba(108,99,255,.07);}
+.browser-mode input:focus{border-color:rgba(0,212,255,.45);box-shadow:0 0 0 3px rgba(0,212,255,.06);}
+input::placeholder{color:rgba(200,210,240,.2);font-size:12px;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:10px 18px;border-radius:10px;border:none;font-size:13px;font-weight:700;
+  font-family:'Syne',sans-serif;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-p{background:linear-gradient(135deg,var(--c1),var(--c2));color:#fff;
+  box-shadow:0 4px 20px rgba(108,99,255,.3);}
+.btn-p:hover:not(:disabled){opacity:.85;transform:translateY(-1px);}
+.btn-p:active{transform:scale(.97);}
+.btn-c{background:linear-gradient(135deg,var(--c4),#7c3aed);color:#fff;
+  box-shadow:0 4px 20px rgba(0,212,255,.25);}
+.btn-c:hover:not(:disabled){opacity:.85;transform:translateY(-1px);}
+.btn-c:active{transform:scale(.97);}
+.btn-g{background:linear-gradient(135deg,var(--c3),#06b6d4);color:#000;font-weight:900;}
+.btn-g:hover:not(:disabled){opacity:.85;transform:translateY(-1px);}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--muted2);}
+.btn-ghost:hover{background:var(--s3);color:var(--text);}
+.btn-danger{background:rgba(246,79,89,.1);border:1px solid rgba(246,79,89,.25);color:var(--c2);}
+.btn-danger:hover{background:rgba(246,79,89,.2);}
+.btn-sm{padding:7px 13px;font-size:12px;border-radius:8px;}
+.btn-full{width:100%;padding:15px;font-size:14px;border-radius:13px;margin-bottom:11px;
+  position:relative;overflow:hidden;}
+.btn-full::before{content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.1) 0%,transparent 50%);}
+.btn-full:active{transform:scale(.98);}
+
+/* ── STATS ── */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
+.stat-box{background:var(--s1);border:1px solid var(--border);border-radius:13px;padding:12px 10px;text-align:center;}
+.stat-val{font-size:18px;font-weight:900;color:#fff;line-height:1;}
+.stat-val small{font-size:11px;font-weight:400;color:var(--muted2);}
+.stat-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);margin-top:4px;letter-spacing:.5px;text-transform:uppercase;}
+
+/* ── ENCODER TABS ── */
+.enc-tabs{display:flex;background:var(--s1);border:1px solid var(--border);
+  border-radius:14px;padding:4px;margin-bottom:16px;gap:4px;}
+.enc-tab{flex:1;text-align:center;padding:11px 8px;border-radius:10px;font-size:12px;
+  font-weight:800;cursor:pointer;transition:all .25s;color:var(--muted2);
+  letter-spacing:.5px;font-family:'JetBrains Mono',monospace;border:1px solid transparent;}
+.enc-tab.et-p.active{background:linear-gradient(135deg,rgba(108,99,255,.25),rgba(246,79,89,.15));
+  border-color:rgba(108,99,255,.3);color:#fff;box-shadow:0 4px 20px rgba(108,99,255,.2);}
+.enc-tab.et-b.active{background:linear-gradient(135deg,rgba(0,212,255,.2),rgba(124,58,237,.15));
+  border-color:rgba(0,212,255,.3);color:#fff;box-shadow:0 4px 20px rgba(0,212,255,.15);}
+.enc-tab:not(.active):hover{background:var(--s3);color:var(--text);}
+.enc-section{display:none;}
+.enc-section.active{display:block;animation:pgIn .2s ease;}
+
+/* ── MODE BADGE ── */
+.mode-badge{display:inline-flex;align-items:center;gap:8px;border-radius:10px;
+  padding:7px 13px;margin-bottom:14px;font-family:'JetBrains Mono',monospace;
+  font-size:10px;letter-spacing:1.5px;text-transform:uppercase;}
+.mb-p{background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);color:var(--c1);}
+.mb-b{background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.18);color:var(--c4);}
+.mdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;animation:blink 1.5s ease-in-out infinite;}
+.mb-p .mdot{background:var(--c1);box-shadow:0 0 8px var(--c1);}
+.mb-b .mdot{background:var(--c4);box-shadow:0 0 8px var(--c4);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* ── INFO BOX ── */
+.info-box{border-radius:11px;padding:10px 13px;margin-bottom:12px;
+  font-size:11px;line-height:1.7;font-family:'JetBrains Mono',monospace;}
+.ib-p{background:rgba(108,99,255,.06);border:1px solid rgba(108,99,255,.2);color:rgba(160,155,255,.85);}
+.ib-c{background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.18);color:rgba(100,220,255,.8);}
+.info-box strong{color:#fff;}
+
+/* ── MINI UPLOAD (inside encoder) ── */
+.mini-upload{background:var(--s1);border:1px solid var(--border);border-radius:14px;
+  margin-bottom:12px;overflow:hidden;}
+.mu-head{display:flex;align-items:center;justify-content:space-between;
+  padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;
+  user-select:none;}
+.mu-head-left{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text);}
+.mu-head-arrow{font-size:12px;color:var(--muted2);transition:transform .25s;}
+.mu-head.open .mu-head-arrow{transform:rotate(180deg);}
+.mu-body{display:none;padding:14px;}
+.mu-body.open{display:block;}
+
+/* mini drop zone */
+.mini-drop{border:2px dashed var(--border2);border-radius:12px;padding:22px 16px;
+  text-align:center;cursor:pointer;background:rgba(255,255,255,.02);transition:all .25s;
+  position:relative;margin-bottom:10px;}
+.mini-drop:hover,.mini-drop.drag{border-color:var(--c1);background:rgba(108,99,255,.04);}
+.mini-drop input{display:none;}
+.mini-drop-icon{font-size:26px;margin-bottom:6px;display:block;}
+.mini-drop-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;}
+.mini-drop-sub{font-size:11px;color:var(--muted2);}
+
+/* mini preview */
+.mini-prev{display:none;border-radius:10px;overflow:hidden;border:1px solid var(--border);margin-bottom:10px;}
+.mini-prev.show{display:block;}
+.mini-prev-img-wrap{width:100%;max-height:180px;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;}
+.mini-prev-img-wrap img{max-width:100%;max-height:180px;object-fit:contain;display:block;}
+.mini-prev-change{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.75);
+  border:none;border-radius:7px;color:#fff;font-size:11px;padding:5px 10px;
+  cursor:pointer;font-family:'Syne',sans-serif;backdrop-filter:blur(4px);}
+.mini-prev-body{padding:10px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.mini-prev-meta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted2);flex:1;}
+
+/* confirm strip */
+.mu-confirm{display:none;background:linear-gradient(135deg,rgba(67,233,123,.08),rgba(0,212,255,.05));
+  border:1px solid rgba(67,233,123,.3);border-radius:10px;padding:10px 13px;
+  margin-bottom:10px;align-items:center;gap:10px;}
+.mu-confirm.show{display:flex;}
+.mu-confirm-text{flex:1;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--c3);}
+.mu-confirm-text strong{color:#fff;display:block;margin-bottom:1px;font-size:12px;}
+.mu-confirm-acts{display:flex;gap:6px;flex-shrink:0;}
+
+/* upload status */
+.mu-uploading{display:none;text-align:center;padding:14px;font-family:'JetBrains Mono',monospace;
+  font-size:11px;color:var(--muted2);}
+
+/* url fill row */
+.url-fill-row{display:flex;gap:7px;align-items:stretch;}
+.url-fill-row input{flex:1;}
+.url-fill-row .btn-gal{flex-shrink:0;padding:0 12px;border-radius:10px;border:1px solid var(--border2);
+  background:rgba(255,255,255,.04);color:var(--muted2);cursor:pointer;font-size:14px;
+  transition:all .2s;display:flex;align-items:center;}
+.url-fill-row .btn-gal:hover{background:var(--s3);border-color:var(--border2);color:var(--text);}
+
+/* autofill badge */
+.autofill-badge{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;
+  font-size:9px;color:var(--c3);background:rgba(67,233,123,.08);border:1px solid rgba(67,233,123,.2);
+  border-radius:6px;padding:2px 8px;margin-top:4px;}
+
+/* ── COPY ROWS ── */
+.copy-block{background:rgba(255,255,255,.02);border:1px solid var(--border);
+  border-radius:12px;overflow:hidden;margin-bottom:10px;}
+.copy-block:last-child{margin-bottom:0;}
+.copy-block-head{display:flex;align-items:center;justify-content:space-between;
+  padding:9px 13px;border-bottom:1px solid var(--border);background:rgba(0,0,0,.15);}
+.copy-block-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted2);
+  letter-spacing:1.5px;text-transform:uppercase;}
+.copy-btn{padding:4px 12px;border-radius:7px;border:1px solid rgba(108,99,255,.3);
+  background:rgba(108,99,255,.1);color:var(--c1);font-size:11px;font-weight:700;
+  font-family:'JetBrains Mono',monospace;cursor:pointer;transition:all .2s;letter-spacing:.5px;}
+.copy-btn:hover{background:rgba(108,99,255,.22);border-color:rgba(108,99,255,.5);}
+.copy-btn.done{background:rgba(67,233,123,.12);border-color:rgba(67,233,123,.35);color:var(--c3);}
+.copy-block-body{padding:10px 13px;}
+.copy-text{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--c4);
+  word-break:break-all;line-height:1.7;}
+.copy-text.fmt{color:var(--text);}
+
+/* ── RESULT WRAP ── */
+.enc-result{display:none;margin-top:4px;}
+.enc-result.show{display:block;animation:pgIn .25s ease;}
+.res-header{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;
+  margin-bottom:12px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:1.5px;}
+.rh-p{color:var(--c1);background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);}
+.rh-b{color:var(--c4);background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.18);}
+.rh-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;animation:blink 1.5s infinite;}
+.rh-dot-p{background:var(--c3);box-shadow:0 0 8px var(--c3);}
+.rh-dot-b{background:var(--c4);box-shadow:0 0 8px var(--c4);}
+
+/* ── GALLERY ── */
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:9px;}
+.gal-item{background:var(--s1);border:1px solid var(--border);border-radius:13px;
+  overflow:hidden;cursor:pointer;transition:all .2s;position:relative;}
+.gal-item:hover{transform:translateY(-2px);border-color:var(--border2);}
+.gal-thumb{width:100%;aspect-ratio:3/2;object-fit:cover;display:block;}
+.gal-info{padding:8px 10px;}
+.gal-name{font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gal-meta{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted2);margin-top:2px;}
+.gal-actions{position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;transition:.2s;}
+.gal-item:hover .gal-actions{opacity:1;}
+.gal-act-btn{width:26px;height:26px;border-radius:7px;border:none;cursor:pointer;
+  font-size:11px;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);}
+.g-use{background:rgba(108,99,255,.85);}
+.g-del{background:rgba(246,79,89,.85);}
+.gal-empty{text-align:center;padding:48px 20px;color:var(--muted2);}
+.gal-empty-ic{font-size:40px;margin-bottom:10px;}
+
+/* ── MODAL (editor) ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);
+  backdrop-filter:blur(12px);z-index:500;align-items:flex-start;
+  justify-content:center;overflow-y:auto;padding:20px;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--s1);border:1px solid var(--border2);border-radius:18px;
+  width:96vw;max-width:800px;animation:pgIn .25s ease;overflow:hidden;}
+.modal-head{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;border-bottom:1px solid var(--border);}
+.modal-head h2{font-size:15px;font-weight:800;}
+.modal-close{width:30px;height:30px;border-radius:8px;background:var(--s3);
+  border:1px solid var(--border);color:var(--muted2);cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;}
+.ed-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--s2);}
+.ed-tab{flex:1;padding:10px 5px;text-align:center;font-size:12px;font-weight:700;
+  color:var(--muted2);cursor:pointer;transition:.2s;border-bottom:2px solid transparent;}
+.ed-tab:hover{color:var(--text);}
+.ed-tab.active{color:var(--c1);border-bottom-color:var(--c1);}
+.ed-body{display:flex;min-height:340px;}
+.ed-cw{flex:1;background:#050507;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.ed-cw canvas{max-width:100%;max-height:400px;display:block;cursor:crosshair;}
+.cw-crop{width:100%;} .cw-crop img{max-width:100%;display:block;}
+.ed-pan{width:180px;flex-shrink:0;border-left:1px solid var(--border);background:var(--s2);
+  padding:12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:440px;}
+.ep-s{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:4px;text-transform:uppercase;}
+.ep-i{width:100%;background:var(--s3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:12px;font-family:'Syne',sans-serif;outline:none;}
+.ep-i:focus{border-color:var(--c1);}
+.ep-r{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.rb{padding:5px 9px;border-radius:7px;border:1px solid var(--border);background:var(--s3);
+  color:var(--muted2);font-size:11px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:600;transition:.2s;}
+.rb.active,.rb:hover{background:rgba(108,99,255,.15);border-color:rgba(108,99,255,.3);color:var(--c1);}
+.ds{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:var(--s3);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--muted2);transition:.2s;}
+.ds.active,.ds:hover{border-color:var(--c1);color:var(--c1);}
+.clr-dot{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.2s;flex-shrink:0;}
+.clr-dot.sl,.clr-dot:hover{border-color:#fff;transform:scale(1.1);}
+.clr-row{display:flex;gap:5px;flex-wrap:wrap;}
+.ej{width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;border-radius:7px;transition:background .15s;}
+.ej:hover{background:rgba(108,99,255,.2);}
+.em-grid{display:flex;flex-wrap:wrap;gap:3px;}
+.ed-footer{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--border);background:var(--s2);}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:rgba(7,9,15,.96);border:1px solid rgba(255,255,255,.1);border-radius:13px;
+  padding:10px 20px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;
+  color:#fff;backdrop-filter:blur(16px);opacity:0;transition:all .3s;pointer-events:none;
+  z-index:9999;white-space:nowrap;letter-spacing:.5px;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.ok{border-color:rgba(67,233,123,.4);}
+.toast.err{border-color:rgba(246,79,89,.4);}
+.toast.info{border-color:rgba(0,212,255,.3);}
+
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
+</style>
+</head>
+<body>
+
+<div class="bg-fixed">
+  <div class="bg-orb o1"></div><div class="bg-orb o2"></div><div class="bg-orb o3"></div>
+  <div class="bg-grid"></div>
+</div>
+
+<div class="shell">
+
+<!-- ══════ SIDEBAR ══════ -->
+<div class="sidebar" id="sb">
+  <div class="brand">
+    <div class="brand-row">
+      <div class="brand-ic">🎬</div>
+      <div>
+        <div class="brand-name">CINE<span>FLIX</span></div>
+        <div class="brand-sub">Studio v3</div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <div class="nav-sec">Upload</div>
+    <div class="nav-item active" id="nav-upload" onclick="goPage('upload',this)">
+      <span class="nav-ic">📤</span> Image Upload
+    </div>
+    <div class="nav-item" id="nav-gallery" onclick="goPage('gallery',this)">
+      <span class="nav-ic">🖼</span> Gallery
+      <span class="nav-badge" id="gBadge">0</span>
+    </div>
+    <div class="nav-sec">Encoder</div>
+    <div class="nav-item" id="nav-encoder" onclick="goPage('encoder',this)">
+      <span class="nav-ic">⚙️</span> Encoder
+    </div>
+  </nav>
+
+  <div class="sidebar-bot">
+    <div class="cfg-lbl"><div class="cfg-dot" id="cfgDot"></div> imgbb API Key</div>
+    <input class="cfg-inp" id="cfgKey" placeholder="imgbb api key..." oninput="saveCfg()">
+    <div class="cfg-lbl" style="margin-top:8px;">🤖 Bot Username</div>
+    <input class="cfg-inp" id="sbBot" placeholder="Cineflixstream_bot" oninput="sbSave()">
+    <div class="cfg-lbl">📱 App Name</div>
+    <input class="cfg-inp" id="sbApp" placeholder="cineflix" oninput="sbSave()">
+
+  </div>
+</div>
+
+<!-- ══════ MAIN ══════ -->
+<main class="main">
+
+<!-- ════ PAGE: UPLOAD ════ -->
+<div class="page active" id="page-upload">
+  <div class="ph">
+    <h1>📤 Image Upload</h1>
+    <p>imgbb তে upload করো — thumbnail, poster যেকোনো image</p>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-box"><div class="stat-val" id="stT">0</div><div class="stat-lbl">Total</div></div>
+    <div class="stat-box"><div class="stat-val" id="stS">0</div><div class="stat-lbl">Session</div></div>
+    <div class="stat-box"><div class="stat-val" id="stM">0<small>MB</small></div><div class="stat-lbl">Size</div></div>
+  </div>
+
+  <!-- Drop Zone -->
+  <div class="mini-drop" id="mainDrop" onclick="document.getElementById('mainFile').click()"
+       ondragover="doDrag(event,'mainDrop',true)" ondragleave="doDrag(event,'mainDrop',false)"
+       ondrop="doDropMain(event)">
+    <input type="file" id="mainFile" accept="image/*" onchange="loadMain(event)">
+    <span class="mini-drop-icon">🖼</span>
+    <div class="mini-drop-title">Image সিলেক্ট করো</div>
+    <div class="mini-drop-sub">Click বা Drag & Drop • JPG PNG WEBP • Max 10MB</div>
+  </div>
+
+  <!-- Preview -->
+  <div class="mini-prev" id="mainPrev">
+    <div class="mini-prev-img-wrap">
+      <img id="mainPrevImg" src="" alt="">
+      <button class="mini-prev-change" onclick="document.getElementById('mainFile').click()">🔄 Change</button>
+    </div>
+    <div class="mini-prev-body">
+      <div class="mini-prev-meta" id="mainMeta"></div>
+      <button class="btn btn-ghost btn-sm" onclick="openEd('main')">✏️ Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="clearMain()">🗑</button>
+    </div>
+  </div>
+
+  <!-- Confirm -->
+  <div class="mu-confirm" id="mainConfirm">
+    <div style="font-size:24px;">☁️</div>
+    <div class="mu-confirm-text">
+      <strong>Upload Confirm করো</strong>
+      imgbb তে upload করতে নিচে click করো
+    </div>
+    <div class="mu-confirm-acts">
+      <button class="btn btn-g btn-sm" onclick="doUpload('main')">✅ Upload</button>
+      <button class="btn btn-danger btn-sm" onclick="clearMain()">✕</button>
+    </div>
+  </div>
+
+  <div class="mu-uploading" id="mainUploading">⏳ Uploading...</div>
+
+  <!-- Result -->
+  <div class="enc-result" id="mainResult">
+    <div class="card ag">
+      <div class="card-head" style="margin-bottom:10px;">
+        <div>
+          <div class="card-title">✅ Upload Successful</div>
+          <div class="card-sub" id="mainResName"></div>
+        </div>
+      </div>
+      <div class="copy-block">
+        <div class="copy-block-head">
+          <div class="copy-block-label">🔗 Direct URL</div>
+          <button class="copy-btn" onclick="copyEl('mainResUrl',this)">COPY</button>
+        </div>
+        <div class="copy-block-body"><div class="copy-text" id="mainResUrl"></div></div>
+      </div>
+      <div class="copy-block" style="margin-top:8px;">
+        <div class="copy-block-head">
+          <div class="copy-block-label">🖼 Thumbnail</div>
+          <button class="copy-btn" onclick="copyEl('mainResThumb',this)">COPY</button>
+        </div>
+        <div class="copy-block-body"><div class="copy-text" id="mainResThumb"></div></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:11px;flex-wrap:wrap;">
+        <button class="btn btn-p btn-sm" onclick="sendToEncoder('player')">▶️ Player Encoder এ পাঠাও</button>
+        <button class="btn btn-c btn-sm" onclick="sendToEncoder('browser')">🌐 Browser Encoder এ পাঠাও</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearMain()">📤 আরেকটা</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PAGE: GALLERY ════ -->
+<div class="page" id="page-gallery">
+  <div class="ph" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <div><h1>🖼 Gallery</h1><p>আগে upload করা সব images</p></div>
+    <button class="btn btn-danger btn-sm" onclick="clearGallery()">🗑 Clear All</button>
+  </div>
+  <div class="gallery-grid" id="galleryGrid"></div>
+  <div class="gal-empty" id="galEmpty">
+    <div class="gal-empty-ic">🖼</div>
+    <p style="font-size:13px;">Gallery empty</p>
+  </div>
+</div>
+
+<!-- ════ PAGE: ENCODER ════ -->
+<div class="page" id="page-encoder">
+  <div class="ph">
+    <h1>⚙️ Encoder</h1>
+    <p>Player ও Browser link generate করো</p>
+  </div>
+
+  <!-- TABS -->
+  <div class="enc-tabs">
+    <div class="enc-tab et-p active" id="etP" onclick="switchEnc('player')">▶️ PLAYER</div>
+    <div class="enc-tab et-b" id="etB" onclick="switchEnc('browser')">🌐 BROWSER</div>
+  </div>
+
+  <!-- ══ PLAYER SECTION ══ -->
+  <div class="enc-section active" id="encPlayer">
+    <div class="mode-badge mb-p"><div class="mdot"></div> PLAYER MODE</div>
+
+    <div class="info-box ib-p">
+      <strong>কীভাবে কাজ করে:</strong> Mini App open → Adsgram ad → Built-in player এ mp4/m3u8 play হবে।
+    </div>
+
+    <!-- Mini Upload for Player -->
+    <div class="mini-upload">
+      <div class="mu-head" id="muHeadP" onclick="toggleMU('P')">
+        <div class="mu-head-left">🖼 Poster Upload <span style="font-size:11px;color:var(--muted2);font-weight:400;">(optional)</span></div>
+        <span class="mu-head-arrow">▾</span>
+      </div>
+      <div class="mu-body" id="muBodyP">
+        <div class="mini-drop" id="dropP" onclick="document.getElementById('fileP').click()"
+             ondragover="doDrag(event,'dropP',true)" ondragleave="doDrag(event,'dropP',false)"
+             ondrop="doDropEnc(event,'P')">
+          <input type="file" id="fileP" accept="image/*" onchange="loadEncFile(event,'P')">
+          <span class="mini-drop-icon">🖼</span>
+          <div class="mini-drop-title">Poster Image দাও</div>
+          <div class="mini-drop-sub">Click বা Drop • Confirm করলে upload হবে</div>
+        </div>
+        <div class="mini-prev" id="prevP">
+          <div class="mini-prev-img-wrap">
+            <img id="prevImgP" src="" alt="">
+            <button class="mini-prev-change" onclick="document.getElementById('fileP').click()">🔄</button>
+          </div>
+          <div class="mini-prev-body">
+            <div class="mini-prev-meta" id="metaP"></div>
+            <button class="btn btn-ghost btn-sm" onclick="openEd('P')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="clearEncFile('P')">🗑</button>
+          </div>
+        </div>
+        <div class="mu-confirm" id="confirmP">
+          <div style="font-size:20px;">☁️</div>
+          <div class="mu-confirm-text">
+            <strong>imgbb তে Upload করবো?</strong>Upload করলে link autofill হবে
+          </div>
+          <div class="mu-confirm-acts">
+            <button class="btn btn-g btn-sm" onclick="doUpload('P')">✅ Upload</button>
+            <button class="btn btn-danger btn-sm" onclick="clearEncFile('P')">✕</button>
+          </div>
+        </div>
+        <div class="mu-uploading" id="uploadingP">⏳ Uploading...</div>
+      </div>
+    </div>
+
+    <!-- Config -->
+    <div class="card ap">
+      <div class="card-head">
+        <div class="card-num np">⚙</div>
+        <div><div class="card-title">Bot Config</div><div class="card-sub">Sidebar থেকে auto-fill</div></div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <div class="fl">Bot Username</div>
+          <input type="text" id="pBot" placeholder="Cineflixstream_bot" oninput="encToSb()">
+        </div>
+        <div class="field">
+          <div class="fl">App Name</div>
+          <input type="text" id="pApp" placeholder="cineflix" oninput="encToSb()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Video Info -->
+    <div class="card ap">
+      <div class="card-head">
+        <div class="card-num np">1</div>
+        <div><div class="card-title">🎬 Video Info</div><div class="card-sub">mp4, m3u8 সব সাপোর্ট</div></div>
+      </div>
+      <div class="field">
+        <div class="fl">Video URL *</div>
+        <input type="url" id="pVideoUrl" placeholder="https://cdn.example.com/movie.mp4">
+      </div>
+      <div class="field">
+        <div class="fl">Title</div>
+        <input type="text" id="pTitle" placeholder="যেমন: Avengers (2024) • Bangla Dubbed">
+      </div>
+      <div class="field">
+        <div class="fl">Poster URL <span id="pPosterBadge" style="display:none;" class="autofill-badge">✅ autofilled</span></div>
+        <div class="url-fill-row">
+          <input type="url" id="pPoster" placeholder="https://i.ibb.co/...  বা upload করো উপরে">
+          <button class="btn-gal" onclick="openGalPick('pPoster')" title="Gallery">🖼</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-p btn-full" onclick="generatePlayer()">🎬 Player Link Generate করো</button>
+
+    <!-- Result -->
+    <div class="enc-result" id="pResult">
+      <div class="res-header rh-p"><div class="rh-dot rh-dot-p"></div> PLAYER LINK READY ✓</div>
+      <div class="copy-block">
+        <div class="copy-block-head">
+          <div class="copy-block-label">🤖 Bot Button Format</div>
+          <button class="copy-btn" onclick="copyEl('pFmt',this)">COPY</button>
+        </div>
+        <div class="copy-block-body"><div class="copy-text fmt" id="pFmt"></div></div>
+      </div>
+      <div class="copy-block" style="margin-top:8px;">
+        <div class="copy-block-head">
+          <div class="copy-block-label">🔗 Direct Link</div>
+          <button class="copy-btn" onclick="copyEl('pLink',this)">COPY</button>
+        </div>
+        <div class="copy-block-body"><div class="copy-text" id="pLink"></div></div>
+      </div>
+      <div class="copy-block" style="margin-top:8px;">
+        <div class="copy-block-head">
+          <div class="copy-block-label">📦 Encoded Payload</div>
+          <button class="copy-btn" onclick="copyEl('pPayload',this)">COPY</button>
+        </div>
+        <div class="copy-block-body"><div class="copy-text" id="pPayload"></div></div>
+      </div>
+    </div>
+  </div><!-- /encPlayer -->
+
+  <!-- ══ BROWSER SECTION ══ -->
+  <div class="enc-section browser-mode" id="encBrowser">
+    <div class="mode-badge mb-b"><div class="mdot"></div> BROWSER MODE</div>
+
+    <div class="info-box ib-c">
+      <strong>কীভাবে কাজ করে:</strong> Mini App open → Adsgram ad → Telegram built-in browser এ mp4 সরাসরি play হবে।
+    </div>
+
+    <!-- Mini Upload for Browser -->
+    <div class="mini-upload">
+      <div class="mu-head" id="muHeadB" onclick="toggleMU('B')">
+        <div class="mu-head-left">🖼 Poster/Thumbnail Upload <span style="font-size:11px;color:var(--muted2);font-weight:400;">(optional)</span></div>
+        <span class="mu-head-arrow">▾</span>
+      </div>
+      <div class="mu-body" id="muBodyB">
+        <div class="mini-drop" id="dropB" onclick="document.getElementById('fileB').click()"
+             ondragover="doDrag(event,'dropB',true)" ondragleave="doDrag(event,'dropB',false)"
+             ondrop="doDropEnc(event,'B')">
+          <input type="file" id="fileB" accept="image/*" onchange="loadEncFile(event,'B')">
+          <span class="mini-drop-icon">🖼</span>
+          <div class="mini-drop-title">Poster Image দাও</div>
+          <div class="mini-drop-sub">Click বা Drop • Confirm করলে upload হবে</div>
+        </div>
+        <div class="mini-prev" id="prevB">
+          <div class="mini-prev-img-wrap">
+            <img id="prevImgB" src="" alt="">
+            <button class="mini-prev-change" onclick="document.getElementById('fileB').click()">🔄</button>
+          </div>
+          <div class="mini-prev-body">
+            <div class="mini-prev-meta" id="metaB"></div>
+            <button class="btn btn-ghost btn-sm" onclick="openEd('B')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="clearEncFile('B')">🗑</button>
+          </div>
+        </div>
+        <div class="mu-confirm" id="confirmB">
+          <div style="font-size:20px;">☁️</div>
+          <div class="mu-confirm-text">
+            <strong>imgbb তে Upload করবো?</strong>Upload করলে link autofill হবে
+          </div>
+          <div class="mu-confirm-acts">
+            <button class="btn btn-g btn-sm" onclick="doUpload('B')">✅ Upload</button>
+            <button class="btn btn-danger btn-sm" onclick="clearEncFile('B')">✕</button>
+          </div>
+        </div>
+        <div class="mu-uploading" id="uploadingB">⏳ Uploading...</div>
+      </div>
+    </div>
+
+    <!-- Config -->
+    <div class="card ac">
+      <div class="card-head">
+        <div class="card-num nc">⚙</div>
+        <div><div class="card-title">Bot Config</div><div class="card-sub">Sidebar থেকে auto-fill</div></div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <div class="fl">Bot Username</div>
+          <input type="text" id="bBot" placeholder="Cineflixstream_bot" oninput="encToSb()">
+        </div>
+        <div class="field">
+          <div class="fl">App Name</div>
+          <input type="text" id="bApp" placeholder="cineflix" oninput="encToSb()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Video Info -->
+    <div class="card ac">
+      <div class="card-head">
+        <div class="card-num nc">1</div>
+        <div><div class="card-title">🌐 Video URL</div><div class="card-sub">Direct mp4 link</div></div>
+      </div>
+      <div class="field">
+        <div class="fl">MP4 Link *</div>
+        <input type="url" id="bVideoUrl" placeholder="https://cdn.example.com/movie.mp4">
+      </div>
+      <div class="field">
+        <div class="fl">Title</div>
+        <input type="text" id="bTitle" placeholder="যেমন: Bachelor (2025) • Bengali">
+      </div>
+      <div class="field">
+        <div class="fl">Poster URL <span id="bPosterBadge" style="display:none;" class="autofill-badge">✅ autofilled</span></div>
+        <div class="url-fill-row">
+          <input type="url" id="bPoster" placeholder="https://i.ibb.co/...  বা upload করো উপরে">
+          <button class="btn-gal" onclick="openGalPick('bPoster')" title="Gallery">🖼</button>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-c btn-full" onclick="generateBrowser()">🌐 Browser Link Generate করো</button>
+
+    <!-- Result -->
+    <div class="enc-result" id="bResult">
+      <div class="res-header rh-b"><div class="rh-dot rh-dot-b"></div> BROWSER LINK READY ✓</div>
+      <div class="copy-block">
+        <div class="copy-block-head">
+          <div class="copy-block-label">🤖 Bot Button Format</div>
+          <button class="copy-btn" onclick="copyEl('bFmt',this)">COPY</button>
+        </div>
+        <div class="copy-block-body"><div class="copy-text fmt" id="bFmt"></div></div>
+      </div>
+      <div class="copy-block" style="margin-top:8px;">
+        <div class="copy-block-head">
+          <div class="copy-block-label">🔗 Direct Link</div>
+          <button class="copy-btn" onclick="copyEl('bLink',this)">COPY</button>
+        </div>
+        <div class="copy-block-body"><div class="copy-text" id="bLink"></div></div>
+      </div>
+      <div class="copy-block" style="margin-top:8px;">
+        <div class="copy-block-head">
+          <div class="copy-block-label">📦 Encoded Payload</div>
+          <button class="copy-btn" onclick="copyEl('bPayload',this)">COPY</button>
+        </div>
+        <div class="copy-block-body"><div class="copy-text" id="bPayload"></div></div>
+      </div>
+    </div>
+  </div><!-- /encBrowser -->
+
+</div><!-- /page-encoder -->
+</main>
+
+</div><!-- /shell -->
+
+<!-- ══ EDITOR MODAL ══ -->
+<div class="modal-bg" id="edModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>🎨 Image Editor</h2>
+      <button class="modal-close" onclick="closeEd()">✕</button>
+    </div>
+    <div class="ed-tabs">
+      <div class="ed-tab active" id="etCrop" onclick="edTab('crop')">✂ Crop</div>
+      <div class="ed-tab" id="etDraw" onclick="edTab('draw')">✏ Draw</div>
+      <div class="ed-tab" id="etText" onclick="edTab('text')">T Text</div>
+      <div class="ed-tab" id="etEmoji" onclick="edTab('emoji')">😀 Emoji</div>
+      <div class="ed-tab" id="etMosaic" onclick="edTab('mosaic')">🟦 Mosaic</div>
+    </div>
+    <div class="ed-body">
+      <div class="ed-cw" id="edCw">
+        <div class="cw-crop" id="pCrop"><img id="cropImg" src=""></div>
+        <canvas id="edCvs" style="display:none;"></canvas>
+      </div>
+      <div class="ed-pan" id="edPan">
+        <div id="panCrop">
+          <div class="ep-s">Aspect Ratio</div>
+          <div class="ep-r">
+            <button class="rb active" onclick="setR(NaN,this)">Free</button>
+            <button class="rb" onclick="setR(1,this)">1:1</button>
+            <button class="rb" onclick="setR(16/9,this)">16:9</button>
+            <button class="rb" onclick="setR(4/3,this)">4:3</button>
+            <button class="rb" onclick="setR(3/4,this)">3:4</button>
+          </div>
+        </div>
+        <div id="panDraw" style="display:none;">
+          <div class="ep-s">Size</div>
+          <div class="ep-r">
+            <div class="ds active" onclick="setBSz(4,this)">S</div>
+            <div class="ds" onclick="setBSz(10,this)">M</div>
+            <div class="ds" onclick="setBSz(20,this)">L</div>
+          </div>
+          <div class="ep-s">Color</div>
+          <div class="clr-row" id="dColors"></div>
+          <input type="color" id="dClrPick" value="#ffffff" oninput="dColor=this.value" style="width:100%;height:28px;border:none;border-radius:6px;cursor:pointer;background:none;margin-top:4px;">
+          <div class="ep-s">Opacity</div>
+          <input type="range" id="dOpR" min="10" max="100" value="100" oninput="dOp2(this.value)" style="width:100%;">
+          <div style="font-size:11px;color:var(--muted2);font-family:'JetBrains Mono',monospace;" id="dOpV">100%</div>
+          <div class="ep-r" style="margin-top:6px;">
+            <button class="btn btn-ghost btn-sm" onclick="undoEd()">↩</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearEd()">🗑</button>
+          </div>
+        </div>
+        <div id="panText" style="display:none;">
+          <div class="ep-s">Text</div>
+          <input class="ep-i" id="txtInp" placeholder="Enter text">
+          <div class="ep-s">Size</div>
+          <input class="ep-i" type="number" id="txtSz" value="32" min="10" max="120">
+          <div class="ep-s">Font</div>
+          <select class="ep-i" id="txtFont">
+            <option>Arial</option><option>Georgia</option><option>Courier New</option>
+            <option>Impact</option><option>Comic Sans MS</option>
+          </select>
+          <div class="ep-s">Color</div>
+          <div class="clr-row" id="tColors"></div>
+          <input type="color" id="tClrPick" value="#ffffff" oninput="tColor=this.value" style="width:100%;height:28px;border:none;border-radius:6px;cursor:pointer;background:none;margin-top:4px;">
+          <div class="ep-r" style="margin-top:4px;">
+            <button class="btn btn-ghost btn-sm" id="txtShad" onclick="this.classList.toggle('active')">Shadow</button>
+            <button class="btn btn-ghost btn-sm" onclick="undoEd()">↩</button>
+          </div>
+        </div>
+        <div id="panEmoji" style="display:none;">
+          <div class="ep-s">Emoji</div>
+          <div class="em-grid" id="emGrid"></div>
+          <div class="ep-s" style="margin-top:6px;">Size</div>
+          <input class="ep-i" type="number" id="emSz" value="48" min="16" max="128">
+          <button class="btn btn-ghost btn-sm" style="margin-top:6px;width:100%;" onclick="undoEd()">↩ Undo</button>
+        </div>
+        <div id="panMosaic" style="display:none;">
+          <div class="ep-s">Mode</div>
+          <select class="ep-i" id="moMode"><option value="pixelate">Pixelate</option><option value="blur">Blur</option></select>
+          <div class="ep-s">Size</div>
+          <input class="ep-i" type="number" id="moSz" value="12" min="4" max="40">
+          <div class="ep-r" style="margin-top:6px;">
+            <button class="btn btn-ghost btn-sm" onclick="undoEd()">↩</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearEd()">🗑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ed-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeEd()">Cancel</button>
+      <button class="btn btn-p btn-sm" onclick="applyEd()">✅ Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ GALLERY PICKER MODAL ══ -->
+<div class="modal-bg" id="galModal">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-head">
+      <h2>🖼 Gallery থেকে নাও</h2>
+      <button class="modal-close" onclick="closeGalPick()">✕</button>
+    </div>
+    <div style="padding:14px;">
+      <div class="gallery-grid" id="galPickGrid"></div>
+      <div style="text-align:center;padding:20px;color:var(--muted2);font-size:13px;" id="galPickEmpty"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<button class="sbtgl" onclick="toggleSb()">☰</button>
+
+<script>
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+const files={main:{file:null,blob:null},P:{file:null,blob:null},B:{file:null,blob:null}};
+let edCtx='main'; // which slot is being edited
+let cropper=null,edCvs=null,edCanvasCtx=null,edBase=null;
+let curEdTab='crop';
+let drawing=false,lx=0,ly=0,dColor='#ffffff',tColor='#ffffff',dSize=4,dOpa=1,selEmoji='😀';
+let dHist=[];
+let galPickTarget=null;
+const DB='cf_gal3';
+
+// ══════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════
+function goPage(name,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  el.classList.add('active');
+  if(name==='gallery')renderGallery();
+}
+
+// ══════════════════════════════════════
+// SIDEBAR SYNC
+// ══════════════════════════════════════
+function saveCfg(){
+  localStorage.setItem('cf_key',v('cfgKey'));
+  document.getElementById('cfgDot').classList.toggle('ok',!!v('cfgKey'));
+}
+function sbSave(){
+  ls('cf_bot',v('sbBot'));ls('cf_app',v('sbApp'));
+  syncEncFields();
+}
+function encToSb(){
+  const bot=v('pBot')||v('bBot');
+  const app=v('pApp')||v('bApp');
+  if(bot){id('sbBot').value=bot;ls('cf_bot',bot);}
+  if(app){id('sbApp').value=app;ls('cf_app',app);}
+}
+function syncEncFields(){
+  const bot=gl('cf_bot'),app=gl('cf_app');
+  ['pBot','bBot'].forEach(x=>{if(id(x).value!==bot)id(x).value=bot;});
+  ['pApp','bApp'].forEach(x=>{if(id(x).value!==app)id(x).value=app;});
+}
+function loadAll(){
+  id('cfgKey').value=gl('cf_key');
+  id('sbBot').value=gl('cf_bot');
+  id('sbApp').value=gl('cf_app');
+  document.getElementById('cfgDot').classList.toggle('ok',!!gl('cf_key'));
+  syncEncFields();updateStats();
+}
+
+// ══════════════════════════════════════
+// ENCODER TABS
+// ══════════════════════════════════════
+function switchEnc(mode){
+  document.querySelectorAll('.enc-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.enc-section').forEach(s=>s.classList.remove('active'));
+  id(mode==='player'?'etP':'etB').classList.add('active');
+  id(mode==='player'?'encPlayer':'encBrowser').classList.add('active');
+}
+
+// ══════════════════════════════════════
+// MINI UPLOAD TOGGLE
+// ══════════════════════════════════════
+function toggleMU(slot){
+  const head=id('muHead'+slot),body=id('muBody'+slot);
+  const isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);
+  head.classList.toggle('open',!isOpen);
+}
+
+// ══════════════════════════════════════
+// FILE LOADING
+// ══════════════════════════════════════
+function doDrag(e,dropId,on){e.preventDefault();id(dropId).classList.toggle('drag',on);}
+function doDropMain(e){e.preventDefault();doDrag(e,'mainDrop',false);const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))setFile('main',f);}
+function doDropEnc(e,slot){e.preventDefault();doDrag(e,'drop'+slot,false);const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))setFile(slot,f);}
+function loadMain(e){if(e.target.files[0])setFile('main',e.target.files[0]);}
+function loadEncFile(e,slot){if(e.target.files[0])setFile(slot,e.target.files[0]);}
+
+function setFile(slot,f){
+  if(f.size>10*1024*1024){toast('❌ Max 10MB!','err');return;}
+  files[slot].file=f;files[slot].blob=null;
+  const url=URL.createObjectURL(f);
+
+  if(slot==='main'){
+    id('mainPrevImg').src=url;
+    id('mainPrev').classList.add('show');
+    id('mainConfirm').classList.add('show');
+    id('mainResult').classList.remove('show');
+    id('mainMeta').textContent=f.name+' • '+fmtSz(f.size);
+  } else {
+    id('prevImg'+slot).src=url;
+    id('prev'+slot).classList.add('show');
+    id('confirm'+slot).classList.add('show');
+    id('meta'+slot).textContent=fmtSz(f.size);
+  }
+}
+
+function clearMain(){
+  files.main={file:null,blob:null};
+  id('mainPrev').classList.remove('show');
+  id('mainConfirm').classList.remove('show');
+  id('mainFile').value='';
+}
+function clearEncFile(slot){
+  files[slot]={file:null,blob:null};
+  id('prev'+slot).classList.remove('show');
+  id('confirm'+slot).classList.remove('show');
+  id('file'+slot).value='';
+}
+
+// ══════════════════════════════════════
+// UPLOAD
+// ══════════════════════════════════════
+async function doUpload(slot){
+  const key=gl('cf_key');
+  if(!key){toast('❌ imgbb API Key দাও sidebar এ!','err');return;}
+  const f=files[slot];
+  if(!f.file&&!f.blob){toast('❌ Image নেই','err');return;}
+
+  // hide confirm, show uploading
+  if(slot==='main'){id('mainConfirm').classList.remove('show');id('mainUploading').style.display='block';}
+  else{id('confirm'+slot).classList.remove('show');id('uploading'+slot).style.display='block';}
+
+  try{
+    const blob=f.blob||f.file;
+    const fd=new FormData();
+    fd.append('image',blob,(f.file?.name||'image.jpg'));
+    fd.append('key',key);
+    const r=await fetch('https://api.imgbb.com/1/upload',{method:'POST',body:fd});
+    const d=await r.json();
+    if(!d.success)throw new Error(d.error?.message||'Upload failed');
+    const data=d.data;
+    const item={url:data.url,thumb:data.thumb?.url||data.url,name:f.file?.name||'image',size:data.size||0,ts:Date.now()};
+    saveToGallery(item);updateStats();
+    toast('✅ Upload OK!','ok');
+
+    if(slot==='main'){
+      id('mainResUrl').textContent=data.url;
+      id('mainResThumb').textContent=data.thumb?.url||data.url;
+      id('mainResName').textContent=item.name;
+      id('mainPrev').classList.remove('show');
+      id('mainResult').classList.add('show');
+    } else {
+      // autofill poster in encoder
+      const posterField=slot==='P'?'pPoster':'bPoster';
+      const badge=slot==='P'?'pPosterBadge':'bPosterBadge';
+      id(posterField).value=data.url;
+      id(badge).style.display='inline-flex';
+      id('prev'+slot).classList.remove('show');
+      // open upload section stays open to show success
+      toast('✅ Poster URL autofilled!','ok');
+    }
+  }catch(e){
+    toast('❌ '+e.message,'err');
+    if(slot==='main')id('mainConfirm').classList.add('show');
+    else id('confirm'+slot).classList.add('show');
+  }finally{
+    if(slot==='main')id('mainUploading').style.display='none';
+    else id('uploading'+slot).style.display='none';
+  }
+}
+
+function sendToEncoder(mode){
+  const url=id('mainResUrl').textContent;
+  if(!url)return;
+  if(mode==='player'){id('pPoster').value=url;id('pPosterBadge').style.display='inline-flex';}
+  else{id('bPoster').value=url;id('bPosterBadge').style.display='inline-flex';}
+  goPage('encoder',id('nav-encoder'));
+  switchEnc(mode);
+  // open the upload section closed by default
+  toast('✅ Poster URL filled!','ok');
+}
+
+// ══════════════════════════════════════
+// GALLERY
+// ══════════════════════════════════════
+function getGal(){try{return JSON.parse(localStorage.getItem(DB)||'[]');}catch{return[];}}
+function saveToGallery(item){const g=getGal();g.unshift(item);localStorage.setItem(DB,JSON.stringify(g.slice(0,100)));updateStats();}
+function updateStats(){
+  const g=getGal();
+  id('stT').textContent=g.length;
+  id('gBadge').textContent=g.length;
+  id('stM').innerHTML=(g.reduce((a,x)=>a+(x.size||0),0)/1048576).toFixed(1)+'<small>MB</small>';
+  const session=parseInt(sessionStorage.getItem('sess')||'0');
+  id('stS').textContent=session;
+}
+function renderGallery(){
+  const g=getGal();
+  id('galEmpty').style.display=g.length?'none':'block';
+  id('galEmpty').innerHTML=g.length?'':'<div class="gal-empty-ic">🖼</div><p style="font-size:13px;">Gallery empty</p>';
+  id('galleryGrid').innerHTML=g.map((x,i)=>`
+    <div class="gal-item">
+      <img class="gal-thumb" src="${x.thumb||x.url}" onerror="this.src='${x.url}'">
+      <div class="gal-info">
+        <div class="gal-name">${x.name||'image'}</div>
+        <div class="gal-meta">${fmtSz(x.size)} • ${tAgo(x.ts)}</div>
+      </div>
+      <div class="gal-actions">
+        <button class="gal-act-btn g-use" onclick="galUse(${i})" title="Player Encoder">▶</button>
+        <button class="gal-act-btn g-del" onclick="galDel(${i})">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+function galUse(i){const g=getGal();if(!g[i])return;id('pPoster').value=g[i].url;id('pPosterBadge').style.display='inline-flex';goPage('encoder',id('nav-encoder'));switchEnc('player');toast('✅ Poster filled!','ok');}
+function galDel(i){const g=getGal();g.splice(i,1);localStorage.setItem(DB,JSON.stringify(g));renderGallery();updateStats();}
+function clearGallery(){if(confirm('সব delete করবে?')){localStorage.setItem(DB,'[]');renderGallery();updateStats();}}
+
+// Gallery Picker
+function openGalPick(targetId){
+  galPickTarget=targetId;
+  const g=getGal();
+  id('galPickEmpty').textContent=g.length?'':'Gallery empty — আগে upload করো';
+  id('galPickGrid').innerHTML=g.map((x,i)=>`
+    <div class="gal-item" onclick="pickGal(${i})">
+      <img class="gal-thumb" src="${x.thumb||x.url}" onerror="this.src='${x.url}'">
+      <div class="gal-info"><div class="gal-name">${x.name||'image'}</div></div>
+    </div>
+  `).join('');
+  id('galModal').classList.add('open');
+}
+function pickGal(i){
+  const g=getGal();if(!g[i])return;
+  if(galPickTarget){
+    id(galPickTarget).value=g[i].url;
+    const badge=galPickTarget==='pPoster'?'pPosterBadge':'bPosterBadge';
+    id(badge).style.display='inline-flex';
+  }
+  closeGalPick();toast('✅ Poster filled!','ok');
+}
+function closeGalPick(){id('galModal').classList.remove('open');}
+
+// ══════════════════════════════════════
+// ENCODER
+// ══════════════════════════════════════
+function enc(raw){return btoa(unescape(encodeURIComponent(raw))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');}
+function gBot(pre){return id(pre+'Bot').value.trim().replace('@','');}
+function gApp(pre){return id(pre+'App').value.trim();}
+
+function generatePlayer(){
+  const videoUrl=v('pVideoUrl'),title=v('pTitle'),poster=v('pPoster');
+  const bot=gBot('p'),app=gApp('p');
+  if(!videoUrl){toast('❌ Video URL দাও!','err');return;}
+  if(!bot||!app){toast('❌ Bot info দাও sidebar এ!','err');return;}
+
+  let payload=videoUrl;
+  if(title||poster) payload+='|||'+(title||'');
+  if(poster) payload+='|||'+poster;
+  const encoded=enc(payload);
+  const link=`https://t.me/${bot}/${app}?startapp=${encoded}`;
+  const fmt=`▶️ ${title||'Watch Now'} | ${link} | webapp`;
+
+  id('pFmt').textContent=fmt;
+  id('pLink').textContent=link;
+  id('pPayload').textContent=encoded;
+  id('pResult').classList.add('show');
+  setTimeout(()=>id('pResult').scrollIntoView({behavior:'smooth',block:'start'}),80);
+  toast('✅ Player link ready!','ok');
+}
+
+function generateBrowser(){
+  const videoUrl=v('bVideoUrl'),title=v('bTitle'),poster=v('bPoster');
+  const bot=gBot('b'),app=gApp('b');
+  if(!videoUrl){toast('❌ Video URL দাও!','err');return;}
+  if(!bot||!app){toast('❌ Bot info দাও sidebar এ!','err');return;}
+
+  // payload: browser|||videoUrl|||title|||poster
+  let payload='browser|||'+videoUrl;
+  if(title) payload+='|||'+title;
+  else payload+='|||';
+  if(poster) payload+='|||'+poster;
+
+  const encoded=enc(payload);
+  const link=`https://t.me/${bot}/${app}?startapp=${encoded}`;
+  const fmt=`▶️ ${title||'Watch Now'} | ${link} | webapp`;
+
+  id('bFmt').textContent=fmt;
+  id('bLink').textContent=link;
+  id('bPayload').textContent=encoded;
+  id('bResult').classList.add('show');
+  setTimeout(()=>id('bResult').scrollIntoView({behavior:'smooth',block:'start'}),80);
+  toast('✅ Browser link ready!','ok');
+}
+
+// ══════════════════════════════════════
+// COPY
+// ══════════════════════════════════════
+function copyEl(elId,btn){
+  const text=id(elId).textContent.trim();
+  const doCopy=()=>{btn.textContent='✅';btn.classList.add('done');setTimeout(()=>{btn.textContent='COPY';btn.classList.remove('done');},2000);toast('📋 Copied!','ok');};
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(text).then(doCopy).catch(()=>fallbackCopy(text,doCopy));
+  } else fallbackCopy(text,doCopy);
+}
+function fallbackCopy(text,cb){
+  const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0;';
+  document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);cb();
+}
+
+// ══════════════════════════════════════
+// EDITOR
+// ══════════════════════════════════════
+function openEd(slot){
+  edCtx=slot;
+  const f=files[slot];
+  if(!f.file&&!f.blob){toast('❌ Image নেই','err');return;}
+  curEdTab='crop';
+  ['Crop','Draw','Text','Emoji','Mosaic'].forEach(x=>id('et'+x).classList.toggle('active',x==='Crop'));
+  ['panCrop','panDraw','panText','panEmoji','panMosaic'].forEach(p=>id(p).style.display=p==='panCrop'?'block':'none');
+  id('pCrop').style.display='block';
+  id('edCvs').style.display='none';
+  const src=URL.createObjectURL(f.blob||f.file);
+  const ci=id('cropImg');ci.src=src;
+  if(cropper){cropper.destroy();cropper=null;}
+  ci.onload=()=>{cropper=new Cropper(ci,{viewMode:1,autoCropArea:.9,responsive:true});};
+  initClrs();initEmGrid();
+  id('edModal').classList.add('open');
+}
+function closeEd(){id('edModal').classList.remove('open');if(cropper){cropper.destroy();cropper=null;}}
+function edTab(t){
+  curEdTab=t;
+  ['Crop','Draw','Text','Emoji','Mosaic'].forEach(x=>{
+    id('et'+x).classList.toggle('active',t===x.toLowerCase());
+    id('pan'+x.charAt(0).toUpperCase()+x.slice(1)).style.display=t===x.toLowerCase()?'block':'none';
+  });
+  id('pCrop').style.display=t==='crop'?'block':'none';
+  id('edCvs').style.display=t!=='crop'?'block':'none';
+  if(t!=='crop')initEdCvs();
+}
+function initEdCvs(){
+  edCvs=id('edCvs');edCanvasCtx=edCvs.getContext('2d');
+  const f=files[edCtx];
+  const src=URL.createObjectURL(f.blob||f.file);
+  edBase=new Image();
+  edBase.onload=()=>{
+    const maxW=500,maxH=380,ratio=Math.min(maxW/edBase.naturalWidth,maxH/edBase.naturalHeight,1);
+    edCvs.width=Math.round(edBase.naturalWidth*ratio);edCvs.height=Math.round(edBase.naturalHeight*ratio);
+    edCanvasCtx.drawImage(edBase,0,0,edCvs.width,edCvs.height);
+    dHist=[edCanvasCtx.getImageData(0,0,edCvs.width,edCvs.height)];
+    bindEdEv();
+  };edBase.src=src;
+}
+function cPos(e){const r=edCvs.getBoundingClientRect();return{x:(e.clientX-r.left)*(edCvs.width/r.width),y:(e.clientY-r.top)*(edCvs.height/r.height)};}
+function tPos(e){return cPos(e.touches[0]);}
+function bindEdEv(){
+  edCvs.onmousedown=e=>{const p=cPos(e);if(curEdTab==='draw'||curEdTab==='mosaic'){drawing=true;lx=p.x;ly=p.y;saveDH();}};
+  edCvs.onmousemove=e=>{if(!drawing)return;const p=cPos(e);if(curEdTab==='draw')doD(lx,ly,p.x,p.y);else doM(p.x,p.y);lx=p.x;ly=p.y;};
+  edCvs.onmouseup=()=>{drawing=false;};
+  edCvs.onclick=e=>{const p=cPos(e);if(curEdTab==='text')doTxt(p.x,p.y);else if(curEdTab==='emoji')doEm(p.x,p.y);};
+  edCvs.ontouchstart=e=>{e.preventDefault();const p=tPos(e);if(curEdTab==='draw'||curEdTab==='mosaic'){drawing=true;lx=p.x;ly=p.y;saveDH();}};
+  edCvs.ontouchmove=e=>{e.preventDefault();if(!drawing)return;const p=tPos(e);if(curEdTab==='draw')doD(lx,ly,p.x,p.y);else doM(p.x,p.y);lx=p.x;ly=p.y;};
+  edCvs.ontouchend=()=>{drawing=false;};
+}
+function doD(x1,y1,x2,y2){edCanvasCtx.globalAlpha=dOpa;edCanvasCtx.strokeStyle=dColor;edCanvasCtx.lineWidth=dSize;edCanvasCtx.lineCap='round';edCanvasCtx.lineJoin='round';edCanvasCtx.beginPath();edCanvasCtx.moveTo(x1,y1);edCanvasCtx.lineTo(x2,y2);edCanvasCtx.stroke();edCanvasCtx.globalAlpha=1;}
+function doM(cx,cy){const sz=parseInt(id('moSz').value),mode=id('moMode').value,r=sz*2,x=Math.round(cx-r),y=Math.round(cy-r),w=r*2,h=r*2;if(mode==='pixelate'){const d=edCanvasCtx.getImageData(x,y,w,h);for(let py=0;py<h;py+=sz)for(let px=0;px<w;px+=sz){const idx=(py*w+px)*4,rv=d.data[idx],gv=d.data[idx+1],bv=d.data[idx+2];for(let dy=0;dy<sz&&py+dy<h;dy++)for(let dx=0;dx<sz&&px+dx<w;dx++){const i=((py+dy)*w+(px+dx))*4;d.data[i]=rv;d.data[i+1]=gv;d.data[i+2]=bv;d.data[i+3]=255;}}edCanvasCtx.putImageData(d,x,y);}else{edCanvasCtx.save();edCanvasCtx.filter=`blur(${sz}px)`;edCanvasCtx.drawImage(edCvs,x,y,w,h,x,y,w,h);edCanvasCtx.filter='none';edCanvasCtx.restore();}}
+function doTxt(x,y){saveDH();const txt=id('txtInp').value||'Text',sz=id('txtSz').value,font=id('txtFont').value,shad=id('txtShad').classList.contains('active');edCanvasCtx.font=`${sz}px ${font}`;edCanvasCtx.fillStyle=tColor;if(shad){edCanvasCtx.shadowColor='rgba(0,0,0,.7)';edCanvasCtx.shadowBlur=6;edCanvasCtx.shadowOffsetX=2;edCanvasCtx.shadowOffsetY=2;}edCanvasCtx.fillText(txt,x,y);edCanvasCtx.shadowColor='transparent';edCanvasCtx.shadowBlur=0;edCanvasCtx.shadowOffsetX=0;edCanvasCtx.shadowOffsetY=0;}
+function doEm(x,y){saveDH();const sz=parseInt(id('emSz').value);edCanvasCtx.font=`${sz}px serif`;edCanvasCtx.fillText(selEmoji,x-sz/2,y+sz/3);}
+function saveDH(){if(edCvs)dHist.push(edCanvasCtx.getImageData(0,0,edCvs.width,edCvs.height));if(dHist.length>30)dHist.shift();}
+function undoEd(){if(dHist.length>1){dHist.pop();edCanvasCtx.putImageData(dHist[dHist.length-1],0,0);}else if(dHist.length)edCanvasCtx.putImageData(dHist[0],0,0);}
+function clearEd(){if(edBase){edCanvasCtx.drawImage(edBase,0,0,edCvs.width,edCvs.height);dHist=[edCanvasCtx.getImageData(0,0,edCvs.width,edCvs.height)];}}
+function setBSz(sz,btn){dSize=sz;document.querySelectorAll('.ds').forEach(d=>d.classList.remove('active'));btn.classList.add('active');}
+function dOp2(val){dOpa=val/100;id('dOpV').textContent=val+'%';}
+function setR(ratio,btn){document.querySelectorAll('#panCrop .rb').forEach(b=>b.classList.remove('active'));btn.classList.add('active');if(cropper)cropper.setAspectRatio(ratio);}
+function applyEd(){
+  const f=files[edCtx];
+  const updatePrev=(blob)=>{
+    f.blob=blob;
+    const url=URL.createObjectURL(blob);
+    if(edCtx==='main'){id('mainPrevImg').src=url;}
+    else{id('prevImg'+edCtx).src=url;}
+    closeEd();toast('✅ Applied!','info');
+  };
+  if(curEdTab==='crop'){
+    if(!cropper)return closeEd();
+    cropper.getCroppedCanvas({maxWidth:4096,maxHeight:4096}).toBlob(b=>updatePrev(b),'image/jpeg',.9);
+  } else {
+    if(!edCvs)return closeEd();
+    edCvs.toBlob(b=>updatePrev(b),'image/jpeg',.95);
+  }
+}
+const PAL=['#ffffff','#000000','#ff4d6d','#ff9500','#ffdd00','#43e97b','#6c63ff','#00d4ff','#fa709a','#888'];
+function initClrs(){
+  ['dColors','tColors'].forEach(cid=>{
+    id(cid).innerHTML=PAL.map(c=>`<div class="clr-dot" style="background:${c}" onclick="pickC('${cid}','${c}',this)"></div>`).join('');
+  });
+}
+window.pickC=(cid,c,el)=>{
+  if(cid==='dColors'){dColor=c;id('dClrPick').value=c;}else{tColor=c;id('tClrPick').value=c;}
+  document.querySelectorAll('#'+cid+' .clr-dot').forEach(d=>d.classList.remove('sl'));
+  el.classList.add('sl');
+};
+const EMS=['😀','😂','🥰','😎','🤩','🥳','🔥','💯','✨','🎉','❤️','💀','👀','🌈','🦋','🐱','🐶','🎵','🍕','⭐','🏆','💎','🌙','☀️','🎨','📸','💪','🙌','👑','🤙','🫶','💥','🤯','🎭','🚀'];
+function initEmGrid(){id('emGrid').innerHTML=EMS.map(e=>`<div class="ej" onclick="pickEm('${e}',this)">${e}</div>`).join('');}
+function pickEm(em,el){selEmoji=em;document.querySelectorAll('.ej').forEach(e=>e.style.background='');el.style.background='rgba(108,99,255,.25)';}
+
+// ══════════════════════════════════════
+// SIDEBAR TOGGLE
+// ══════════════════════════════════════
+function toggleSb(){id('sb').classList.toggle('open');}
+document.addEventListener('click',e=>{
+  const sb=id('sb');
+  if(sb.classList.contains('open')&&!sb.contains(e.target)&&!e.target.classList.contains('sbtgl'))
+    sb.classList.remove('open');
+});
+
+// ══════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════
+const id=x=>document.getElementById(x);
+const v=x=>id(x).value.trim();
+const ls=(k,v)=>localStorage.setItem(k,v);
+const gl=k=>localStorage.getItem(k)||'';
+function fmtSz(b){if(!b)return'—';if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(0)+'KB';return(b/1048576).toFixed(1)+'MB';}
+function tAgo(ts){const s=(Date.now()-ts)/1000;if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+function toast(msg,type=''){const t=id('toast');t.textContent=msg;t.className='toast show '+(type||'');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2800);}
+
+window.addEventListener('DOMContentLoaded',loadAll);
+</script>
+</body>
+</html>
